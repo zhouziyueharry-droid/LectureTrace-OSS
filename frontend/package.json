@@ -14,7 +14,7 @@
     "@embedpdf/fonts-sc": "1.0.0",
     "@embedpdf/pdfium": "2.15.1",
     "@embedpdf/react-pdf-viewer": "2.15.1",
-    "katex": "0.16.47",
+    "katex": "0.19.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
