@@ -38,7 +38,7 @@ uv run --directory backend --no-sync python -m app.main
 
 欢迎中文或英文 Issue/PR。不需要 Collaborator 权限：Fork → 新分支 → 提交 PR。每个人使用自己的 Git 身份，保留真实贡献署名。请勿提交密钥、课件、录像或未获授权的示例资料。
 
-欢迎同学通过课程项目一起完善 LectureTrace。课程期间的协作权限、结束后的维护安排、长期参与方式和贡献署名，见[课程协作与后续参与](../CONTRIBUTING.md#课程协作与后续参与)。
+**NTU AI6130（26S1，Large Language Models）小组同学请看这里：** [小组协作须知](../CONTRIBUTING.md#ntu-ai6130-小组同学须知)。这里说明本次小组作业的协作方式、课程结束后的权限安排、长期参与方式和贡献署名。
 
 公开仓库从整理后的源码快照开始，不包含私人课程及历史实验产物。后续贡献通过公开 commit、PR 和 review 记录。
 

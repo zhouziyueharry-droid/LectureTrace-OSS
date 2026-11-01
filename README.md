@@ -51,7 +51,7 @@ npm --prefix frontend run build
 
 Tests use temporary data and mocked model services. Never add keys, recordings, course slides or private datasets to a PR. See [CONTRIBUTING.md](CONTRIBUTING.md) for attribution, review and validation expectations.
 
-Course teams are welcome to collaborate in shared feature branches. See [course collaboration and ongoing participation](CONTRIBUTING.md#course-collaboration-and-ongoing-participation) for course access, continued involvement and contributor credit.
+**NTU AI6130 group members (26S1, Large Language Models):** please read the [group collaboration notes](CONTRIBUTING.md#ntu-ai6130-group-collaboration) for our assignment workflow, access after the course, continued participation and contributor credit.
 
 ## Status and limitations
 
