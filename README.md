@@ -51,6 +51,8 @@ npm --prefix frontend run build
 
 Tests use temporary data and mocked model services. Never add keys, recordings, course slides or private datasets to a PR. See [CONTRIBUTING.md](CONTRIBUTING.md) for attribution, review and validation expectations.
 
+Course teams are welcome to collaborate in shared feature branches. See [course collaboration and ongoing participation](CONTRIBUTING.md#course-collaboration-and-ongoing-participation) for course access, continued involvement and contributor credit.
+
 ## Status and limitations
 
 This is an early public source release of an existing personal project. The public history starts with a reviewed source snapshot; private lecture materials and historical experiment artifacts are not included. Future contributions will be recorded through public commits and PRs.
