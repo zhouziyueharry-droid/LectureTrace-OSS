@@ -26,7 +26,7 @@ asr = ["faster-whisper>=1.1"]
 cuda = [
   "faster-whisper>=1.1",
   "nvidia-cublas-cu12>=12.9.2.10; sys_platform == 'win32' or sys_platform == 'linux'",
-  "nvidia-cudnn-cu12>=9.26.0.51; sys_platform == 'win32' or sys_platform == 'linux'",
+  "nvidia-cudnn-cu12>=9.27.0.42; sys_platform == 'win32' or sys_platform == 'linux'",
 ]
 pdf-ocr = [
     "docling>=2,<3",
