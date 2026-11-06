@@ -164,7 +164,13 @@ def ask(video_id: str, question: str, *, node_id: str | None = None,
         allow_outline_edit: bool = False, note_target: dict | None = None, pdf_target: dict | None = None) -> Iterator[dict]:
     from ..codex import settings as codex_settings
     from . import codex_chat
-    if codex_settings.get()['provider'] == 'codex':
+    provider = codex_settings.get()['provider']
+    if provider == 'learning_agent':
+        from .learning_agent import chat as learning_chat
+        yield from learning_chat.ask(video_id, question, node_id=node_id, allow_outline_edit=allow_outline_edit,
+                                     note_target=note_target, pdf_target=pdf_target)
+        return
+    if provider == 'codex':
         options = {'pdf_target': pdf_target} if pdf_target is not None else {}
         yield from codex_chat.ask(video_id, question, node_id=node_id, allow_outline_edit=allow_outline_edit, note_target=note_target, **options)
         return

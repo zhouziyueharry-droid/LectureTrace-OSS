@@ -31,7 +31,7 @@ def update(values: dict) -> dict:
     if set(values) - set(current):
         raise ValueError('未知的 Codex 设置')
     candidate = {**current, **{k: v for k, v in values.items() if v is not None}}
-    if candidate['provider'] not in ('api', 'codex'):
+    if candidate['provider'] not in ('api', 'codex', 'learning_agent'):
         raise ValueError('问答运行方式无效')
     if candidate['effort'] not in ('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'):
         raise ValueError('思考强度无效')

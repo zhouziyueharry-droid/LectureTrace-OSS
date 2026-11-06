@@ -4,6 +4,7 @@ import {
   logoutCodex, saveCodexSettings, type CodexSettings, type CodexStatus,
 } from '../api.ts'
 import { quotaText } from './QuotaStatus.tsx'
+import LearningAgentSettings from './LearningAgentSettings.tsx'
 
 export default function CodexCard() {
   const [settings, setSettings] = useState<CodexSettings | null>(null)
@@ -70,8 +71,15 @@ export default function CodexCard() {
               <select className="lang-select" value={settings.provider} disabled={busy || !!login} onChange={(e) => change({ provider: e.target.value as CodexSettings['provider'] })}>
                 <option value="api">API 模型</option>
                 <option value="codex">Codex（ChatGPT 登录）</option>
+                <option value="learning_agent">教学 Agent（LangGraph）</option>
               </select>
             </label>
+            {settings.provider === 'learning_agent' && (
+              <>
+                <p className="muted small">按教学步骤检索课程证据、组织解释并检查引用与讲解连贯性。先保存下方独立模型设置，再保存本页以启用教学 Agent。</p>
+                <LearningAgentSettings />
+              </>
+            )}
             {settings.provider === 'codex' && (
               <>
                 <p className="muted small">使用独立的 Codex 账户登录，消耗 ChatGPT 套餐额度。课程文字和截图会发送给模型；实际用量由任务和读取内容决定。</p>
@@ -100,7 +108,7 @@ export default function CodexCard() {
               </>
             )}
             <div className="settings-actions">
-              <button className="btn btn-primary" disabled={busy || !settings.model.trim() || !settings.workspace_root.trim()} onClick={() => void action(async () => { setSettings(await saveCodexSettings(settings)); setSaved(true) })}>{busy ? '处理中…' : '保存问答设置'}</button>
+              <button className="btn btn-primary" disabled={busy || !settings.model.trim() || !settings.workspace_root.trim()} onClick={() => void action(async () => { setSettings(await saveCodexSettings(settings)); setSaved(true) })}>{busy ? '处理中…' : settings.provider === 'learning_agent' ? '启用教学 Agent' : '保存问答设置'}</button>
               {saved && <span className="ok-text small" role="status">已保存</span>}
             </div>
           </>

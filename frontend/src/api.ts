@@ -606,7 +606,7 @@ export const undoOutline = (id: string, revision: string) =>
   request<Outline>(`${base(id)}/outline/undo`, jsonBody({ base_revision: revision }))
 
 export interface CodexSettings {
-  provider: 'api' | 'codex'
+  provider: 'api' | 'codex' | 'learning_agent'
   model: string
   effort: string
   workspace_root: string
@@ -630,6 +630,25 @@ export const loginCodex = () => request<{ login_id: string; auth_url: string }>(
 export const cancelCodexLogin = (loginId: string) =>
   request<void>('/api/codex/login/cancel', jsonBody({ login_id: loginId }))
 export const logoutCodex = () => request<void>('/api/codex/logout', { method: 'POST' })
+
+export interface LearningAgentSettings {
+  provider: 'deepseek' | 'openai' | 'custom'
+  base_url: string
+  model: string
+  effort: 'none' | 'low' | 'medium' | 'high' | 'max'
+  max_output_tokens: number
+  output_language: 'zh-CN' | 'en'
+  has_key: boolean
+  key_hint: string | null
+  api_key?: string
+  clear_api_key?: boolean
+}
+
+export const getLearningAgentSettings = () => request<LearningAgentSettings>('/api/learning-agent/settings')
+export const saveLearningAgentSettings = (settings: LearningAgentSettings) =>
+  request<LearningAgentSettings>('/api/learning-agent/settings', { ...jsonBody(settings), method: 'PUT' })
+export const testLearningAgentConnection = () =>
+  request<{ ok: boolean; message: string }>('/api/learning-agent/test', { method: 'POST' })
 
 export interface NoteTarget { name: string; revision: string }
 export interface NoteDocument extends NoteTarget {

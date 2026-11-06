@@ -80,7 +80,7 @@ export default function ChatPanel({ videoId, enabled, disabledHint, onSeek, refe
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameText, setRenameText] = useState('')
-  const [provider, setProvider] = useState<'api' | 'codex'>('api')
+  const [provider, setProvider] = useState<'api' | 'codex' | 'learning_agent'>('api')
   const [providerReady, setProviderReady] = useState(false)
   const [model, setModel] = useState<ChatModel | null>(null)
   const [models, setModels] = useState<CodexModel[]>([])
@@ -404,7 +404,7 @@ ${agentRequest.question}` : agentRequest.question))
         <div className="ag-title">
           <AgentGlyph size={24} />
           <h2>Agent</h2>
-          <span className="ag-tag">{provider === 'codex' ? 'Codex' : 'API'}</span>
+          <span className="ag-tag">{provider === 'codex' ? 'Codex' : provider === 'learning_agent' ? '教学 Agent' : 'API'}</span>
           <span className="spacer" />
           {undoRevision && <button className="btn btn-small btn-text" disabled={busy || editBusy || undoRevision !== outlineRevision} onClick={() => void applyEdit(true)}>撤销大纲修改</button>}
           {headExtra}
@@ -508,7 +508,7 @@ ${agentRequest.question}` : agentRequest.question))
                 <strong>Agent</strong>
                 <span className="muted small">{pending.interaction ? '等待回复' : '正在回答'}</span>
               </div>
-              {provider === 'codex' ? <div className="ag-live-progress" role="status">
+              {provider !== 'api' ? <div className="ag-live-progress" role="status">
                 <span className="ag-live-dot" aria-hidden />
                 {pending.text ? '正在生成回答' : pending.progress ?? '已发送，正在连接'}
               </div> : <ol className="ag-steps" aria-label="回答进度">
@@ -620,7 +620,7 @@ ${agentRequest.question}` : agentRequest.question))
           </div>
         </div>
         {modelError && provider === 'codex' && <p className="error-text small" role="alert">{modelError} <button className="ag-ghost" onClick={() => void loadModels()}>重新加载模型</button></p>}
-        <p className="muted small chat-hint">{provider === 'codex' ? '消耗 ChatGPT 套餐额度' : '按当前接口计费'}</p>
+        <p className="muted small chat-hint">{provider === 'codex' ? '消耗 ChatGPT 套餐额度' : provider === 'learning_agent' ? '教学 Agent 使用独立模型设置' : '按当前接口计费'}</p>
       </div>
 
       <ConfirmDialog
