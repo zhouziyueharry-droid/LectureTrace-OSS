@@ -49,13 +49,20 @@ async def exercise(session):
     initialized = await session.initialize()
     assert initialized.serverInfo.name == "LectureTrace"
     tools = (await session.list_tools()).tools
-    assert {t.name for t in tools} == {"list_videos", "get_video_context", "search_video", "read_evidence", "view_slide"}
+    assert {t.name for t in tools} == {"list_videos", "get_video_context", "search_video", "read_evidence", "view_slide",
+                                      "get_video_units", "read_video_unit"}
     assert all(t.annotations.readOnlyHint and not t.annotations.destructiveHint for t in tools)
     assert all(t.inputSchema["type"] == "object" for t in tools)
     assert data(await session.call_tool("list_videos"))["videos"][0]["id"] == VID
     ctx = data(await session.call_tool("get_video_context", {"video_id": VID}))
     assert ctx["timeline"][0]["id"] == "N001"
     args = {"video_id": VID, "version": ctx["version"]}
+    preview = data(await session.call_tool('get_video_units', {**args, 'timestamp': 30}))
+    assert preview['units'][0]['summary'] == 'Why normalize each mini batch.'
+    assert 'Gamma restores' not in str(preview)
+    transcript = data(await session.call_tool('read_video_unit', {**args, 'unit_id': 'S001.1'}))
+    assert '[T0002]' in transcript['text'] and '[T0003]' in transcript['text']
+    assert transcript['next_text_offset'] is None
     search = data(await session.call_tool("search_video", {**args, "queries": ["Gamma"]}))
     assert "T0003" in [r["id"] for r in search["results"]]
     read = data(await session.call_tool("read_evidence", {**args, "ids": ["T0002-T0003"]}))
@@ -72,6 +79,8 @@ async def exercise(session):
         ("view_slide", {**args, "id": "../../secret"}),
         ("read_evidence", {**args, "version": "sha256:" + "0" * 64, "ids": ["T0002"]}),
         ("delete_video", {"video_id": VID}),
+        ('get_video_units', {**args, 'timestamp': -1}),
+        ('read_video_unit', {**args, 'unit_id': 'S001'}),
     ]:
         assert (await session.call_tool(name, arguments)).isError
 
@@ -173,7 +182,7 @@ def test_plain_jsonrpc_client_versions(library, version):
             client.headers["MCP-Protocol-Version"] = version
             notification = await client.post("http://127.0.0.1:8000/mcp", json={"jsonrpc": "2.0", "method": "notifications/initialized"})
             assert notification.status_code == 202
-            assert len((await request("tools/list", {}))["tools"]) == 5
+            assert len((await request("tools/list", {}))["tools"]) == 7
             result = await request("tools/call", {"name": "list_videos", "arguments": {}})
             assert not result.get("isError")
             assert json.loads(result["content"][0]["text"])["videos"][0]["id"] == VID

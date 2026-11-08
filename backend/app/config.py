@@ -163,6 +163,7 @@ class McpParams:
     max_queries: int = 8
     max_query_chars: int = 1000
     text_chunk_chars: int = 24000
+    summary_chars: int = 600
     max_request_bytes: int = 65536
 
 

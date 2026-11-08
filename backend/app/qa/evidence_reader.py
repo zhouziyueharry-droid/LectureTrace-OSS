@@ -6,7 +6,7 @@ import math
 import re
 from collections import Counter, defaultdict
 
-from .. import artifacts
+from .. import artifacts, config
 from ..pipeline.evidence import fmt_time, id_index
 from . import context, outline_edits
 
@@ -46,6 +46,54 @@ class EvidenceReader:
 
     def _end(self, section: dict) -> float:
         return max(float(section.get(k) or section["jump"]) for k in ("display_end", "speech_end"))
+
+    def unit_preview(self, unit_id):
+        if unit_id not in self.sections:
+            raise WorkspaceError("单元 ID 不存在，请使用一次出现的 ID，例如 S012.1")
+        section = self.sections[unit_id]
+        page = self.pages.get(section.get('page')) or {}
+        summary = str(section.get('spoken_summary') or '')
+        limit = config.settings.mcp.summary_chars
+        partial = bool(section.get('truncated')) or len(summary) > limit
+        return {
+            'unit_id': unit_id, 'page': section.get('page'), 'start': section['jump'],
+            'end': self._end(section), 'title': str(page.get('title') or '')[:limit],
+            'display_start': section.get('display_start', section['jump'] if page else None),
+            'display_end': section.get('display_end'),
+            'speech_start': section.get('speech_start'), 'speech_end': section.get('speech_end'),
+            'summary': summary[:limit],
+            'summary_status': 'missing' if not summary else 'partial' if partial else 'available',
+            'summary_source': 'generated_navigation',
+            'speech_count': len(section.get('t_ids') or []),
+            'read_tool': 'read_video_unit', 'image_id': unit_id if page else None,
+        }
+
+    def units_at_time(self, timestamp):
+        if isinstance(timestamp, bool) or not isinstance(timestamp, (int, float)) or not math.isfinite(timestamp) or timestamp < 0:
+            raise WorkspaceError("timestamp 必须是非负有限秒数")
+        self._check_version()
+        result = []
+        for section in sorted(self.sections.values(), key=lambda s: (s['jump'], s['id'])):
+            preview = self.unit_preview(section['id'])
+            matches = []
+            for kind in ('display', 'speech'):
+                start, end = preview[kind + '_start'], preview[kind + '_end']
+                if start is None and kind == 'speech' and end is not None:
+                    start = section['jump']
+                if start is not None and end is not None and start <= timestamp < end:
+                    matches.append(kind)
+            if matches:
+                result.append({**preview, 'matched_by': matches})
+        self._check_version()
+        return result
+
+    def read_unit(self, unit_id):
+        self.unit_preview(unit_id)  # Validate section identity, never expand a whole recurring page.
+        ids = self.sections[unit_id].get('t_ids') or []
+        speech = {t['id'] for t in self.evidence.get('speech') or []}
+        if any(i not in speech for i in ids):
+            raise WorkspaceError("单元的转写片段缺失，不能返回不完整的讲解")
+        return self._read(ids) if ids else self._finish('', [])
 
     def _search_index(self):
         self.documents = {}
