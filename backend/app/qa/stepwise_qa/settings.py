@@ -4,7 +4,6 @@ from __future__ import annotations
 from ... import db
 
 SETTING_KEY = "stepwise_qa_settings"
-LEGACY_SETTING_KEY = "learning_agent_settings"
 PROVIDERS = {
     "deepseek": "https://api.deepseek.com",
     "openai": "https://api.openai.com/v1",
@@ -22,14 +21,7 @@ DEFAULTS = {
 
 
 def _stored() -> dict:
-    stored = db.get_setting(SETTING_KEY, None)
-    legacy = db.get_setting(LEGACY_SETTING_KEY, None)
-    if stored is None and legacy is not None:
-        stored = legacy
-    if legacy is not None:
-        db.set_setting(SETTING_KEY, stored or {})
-        db.execute("DELETE FROM app_settings WHERE key = ?", (LEGACY_SETTING_KEY,))
-    return stored or {}
+    return db.get_setting(SETTING_KEY, {}) or {}
 
 
 def get() -> dict:

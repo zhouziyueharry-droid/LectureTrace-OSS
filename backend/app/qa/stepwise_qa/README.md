@@ -1,6 +1,6 @@
 # 步进式问答 Agent
 
-`stepwise_qa` 是 LectureTrace 中基于 LangGraph 的课程问答实现。它会读取已有的大纲、短索引、字幕和幻灯片证据，再根据问题类型组织回答。运行方式标识为 `stepwise_qa`，设置 API 为 `/api/stepwise-qa`；首次读取时会迁移旧版数据库设置。
+`stepwise_qa` 是 LectureTrace 中基于 LangGraph 的课程问答实现。它会读取已有的大纲、短索引、字幕和幻灯片证据，再根据问题类型组织回答。运行方式标识为 `stepwise_qa`，设置 API 为 `/api/stepwise-qa`；独立设置保存在数据库键 `stepwise_qa_settings` 中。
 
 ## 一轮问答概览
 

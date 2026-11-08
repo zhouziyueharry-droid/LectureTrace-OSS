@@ -22,9 +22,6 @@ def get() -> dict:
     defaults = {**asdict(config.settings.codex_qa), 'provider': 'api', 'model': 'gpt-6-sol',
                 'effort': 'medium', 'workspace_root': str(application_dir() / 'workspaces')}
     stored = db.get_setting(KEY, {}) or {}
-    if stored.get('provider') == 'learning_agent':
-        stored = {**stored, 'provider': 'stepwise_qa'}
-        db.set_setting(KEY, stored)
     return {k: v for k, v in {**defaults, **stored}.items() if k not in RETIRED_LIMITS}
 
 
@@ -35,8 +32,6 @@ def update(values: dict) -> dict:
     if set(values) - set(current):
         raise ValueError('未知的 Codex 设置')
     candidate = {**current, **{k: v for k, v in values.items() if v is not None}}
-    if candidate['provider'] == 'learning_agent':
-        candidate['provider'] = 'stepwise_qa'
     if candidate['provider'] not in ('api', 'codex', 'stepwise_qa'):
         raise ValueError('问答运行方式无效')
     if candidate['effort'] not in ('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'):
