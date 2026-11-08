@@ -15,11 +15,13 @@ log = logging.getLogger(__name__)
 _ID = ID_PATTERN
 # 兼容模型偶尔写成 [S012, T0142] / [S012，T0142]
 _GROUP_RE = re.compile(rf"\[\s*({_ID}(?:\s*[,，、;；]\s*{_ID})*)\s*\]")
+_LINK_RE = re.compile(rf"\[\s*({_ID})\s*\]\(\s*#cite-({_ID})\s*\)")
 _ID_RE = re.compile(_ID)
 
 
 def normalize(text: str) -> str:
-    """把 [S012, T0142] 规范成 [S012][T0142]，便于前端逐个渲染。"""
+    """把证据链接和组合 ID 规范成简单的 [ID]，便于校验并交给前端渲染。"""
+    text = _LINK_RE.sub(lambda m: f"[{m.group(1)}]" if m.group(1) == m.group(2) else m.group(0), text)
     return _GROUP_RE.sub(lambda m: "".join(f"[{i}]" for i in _ID_RE.findall(m.group(1))), text)
 
 

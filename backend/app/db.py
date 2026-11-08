@@ -97,6 +97,7 @@ ADDED_COLUMNS = (
     # 回答时 evidence.json 的 created_at；与当前版本不一致的消息 citations 置空、stale=true。旧消息为 NULL
     ("chat_messages", "evidence_version", "TEXT"),
     ("chat_messages", "conversation_id", "TEXT"),
+    ("chat_messages", "learning_options_json", "TEXT"),
     ("chat_conversations", "custom_title", "TEXT"),
 )
 

@@ -211,6 +211,9 @@ export interface ChatMessage {
   stale?: boolean
   /** 失败原因（后端若提供） */
   error?: string | null
+  /** 步进式问答 Agent 在首轮简答后提供的可选拓展动作 */
+  learning_options?: { id: string; label: string; prompt: string; scope: 'course' | 'supplement';
+    evidence_ids?: string[]; parent_question?: string }[]
 }
 
 /** 定位后实际展开的内容：t 段讲解原文、images 张截图 */
@@ -252,7 +255,8 @@ export interface ChatRun {
   id: string
   conversation_id: string
   question: string
-  options: { node_id?: string; allow_outline_edit?: boolean; note_target?: NoteTarget; pdf_target?: PdfTarget }
+  options: { node_id?: string; allow_outline_edit?: boolean; note_target?: NoteTarget; pdf_target?: PdfTarget;
+    learning_action?: string; learning_prompt?: string; learning_scope?: 'course' | 'supplement'; learning_parent_question?: string }
   status: 'running' | 'done' | 'error'
   created_at: string
   pending: { phase: 'start' | 'locate' | 'answer'; expanded: ChatExpanded | null; text: string; corrected: boolean; activity: string[]; usage?: Record<string, unknown>; progress?: string; commentary?: string; note_updates?: number; interaction?: AgentInteraction | null }
@@ -606,7 +610,7 @@ export const undoOutline = (id: string, revision: string) =>
   request<Outline>(`${base(id)}/outline/undo`, jsonBody({ base_revision: revision }))
 
 export interface CodexSettings {
-  provider: 'api' | 'codex' | 'learning_agent'
+  provider: 'api' | 'codex' | 'stepwise_qa'
   model: string
   effort: string
   workspace_root: string
@@ -631,7 +635,7 @@ export const cancelCodexLogin = (loginId: string) =>
   request<void>('/api/codex/login/cancel', jsonBody({ login_id: loginId }))
 export const logoutCodex = () => request<void>('/api/codex/logout', { method: 'POST' })
 
-export interface LearningAgentSettings {
+export interface StepwiseQaSettings {
   provider: 'deepseek' | 'openai' | 'custom'
   base_url: string
   model: string
@@ -644,11 +648,11 @@ export interface LearningAgentSettings {
   clear_api_key?: boolean
 }
 
-export const getLearningAgentSettings = () => request<LearningAgentSettings>('/api/learning-agent/settings')
-export const saveLearningAgentSettings = (settings: LearningAgentSettings) =>
-  request<LearningAgentSettings>('/api/learning-agent/settings', { ...jsonBody(settings), method: 'PUT' })
-export const testLearningAgentConnection = () =>
-  request<{ ok: boolean; message: string }>('/api/learning-agent/test', { method: 'POST' })
+export const getStepwiseQaSettings = () => request<StepwiseQaSettings>('/api/stepwise-qa/settings')
+export const saveStepwiseQaSettings = (settings: StepwiseQaSettings) =>
+  request<StepwiseQaSettings>('/api/stepwise-qa/settings', { ...jsonBody(settings), method: 'PUT' })
+export const testStepwiseQaConnection = () =>
+  request<{ ok: boolean; message: string }>('/api/stepwise-qa/test', { method: 'POST' })
 
 export interface NoteTarget { name: string; revision: string }
 export interface NoteDocument extends NoteTarget {
@@ -741,7 +745,8 @@ export async function askStream(
   question: string,
   onEvent: (e: ChatEvent) => void,
   signal?: AbortSignal,
-  options: { node_id?: string; allow_outline_edit?: boolean; note_target?: NoteTarget; pdf_target?: PdfTarget; run_id?: string } = {},
+  options: { node_id?: string; allow_outline_edit?: boolean; note_target?: NoteTarget; pdf_target?: PdfTarget; run_id?: string;
+    learning_action?: string; learning_prompt?: string; learning_scope?: 'course' | 'supplement'; learning_parent_question?: string } = {},
 ): Promise<void> {
   let res: Response
   try {

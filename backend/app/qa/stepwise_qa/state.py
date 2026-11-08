@@ -7,6 +7,10 @@ from typing import Any, TypedDict
 class TutorState(TypedDict, total=False):
     video_id: str
     question: str
+    learning_action: str | None
+    learning_prompt: str | None
+    learning_scope: str | None
+    learning_parent_question: str | None
     node_id: str | None
     context: Any
     history: list[dict]
@@ -21,6 +25,8 @@ class TutorState(TypedDict, total=False):
     evidence_sufficient: bool
     evidence_reason: str
     answer: str
+    learning_options: list[dict]
+    self_review: list[str]
     review_ready: bool
     review_issues: list[str]
     revision_count: int

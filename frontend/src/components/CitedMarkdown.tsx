@@ -32,6 +32,11 @@ export function citeKind(id: string): string {
 
 /** 把引用改写成特殊链接，交给下面的 a 渲染器：有时间的渲染为跳转按钮，没有的渲染为不可点的标记 */
 function preprocess(content: string): string {
+  // Accept old/model-emitted citation links too; reduce them to the bare IDs expected below.
+  const existingCitationLinks = new RegExp(`\\[(${ID})\\]\\(\\s*#cite-(${ID})\\s*\\)`, 'g')
+  content = content.replace(existingCitationLinks, (whole, label: string, target: string) =>
+    label === target ? `[${label}]` : whole,
+  )
   return content.replace(PDF_RE, (_whole, id: string) => `[PDF](${HREF_PREFIX}${id})`).replace(CLOCK_RE, (_whole, t: string) => `[${t}](${CLOCK_PREFIX}${t})`).replace(NAV_RE, (_whole, id: string) => `[定位:${id}](${HREF_PREFIX}定位:${id})`).replace(CITE_RE, (_whole: string, inner: string) =>
     inner
       .split(SPLIT_RE)

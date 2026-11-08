@@ -58,6 +58,11 @@ def _row_to_msg(r: dict, current_version: str | None) -> dict:
            "status": status, "stale": stale, "created_at": r["created_at"]}
     if status == "failed":
         msg["error"] = CITATION_ERROR
+    if r.get("learning_options_json"):
+        try:
+            msg["learning_options"] = json.loads(r["learning_options_json"])
+        except (TypeError, ValueError):
+            log.warning("教学拓展选项格式无效（消息 %s）", r.get("id"))
     return msg
 
 
@@ -76,20 +81,24 @@ def clear(video_id: str) -> None:
 
 
 def _insert(video_id: str, role: str, content: str, cites: list[dict] | None, *,
-            version: str | None, status: str = "ok", conversation_id: str | None = None) -> dict:
+            version: str | None, status: str = "ok", conversation_id: str | None = None,
+            learning_options: list[dict] | None = None) -> dict:
     from . import conversations
     conversation_id = conversation_id or conversations.current(video_id)
     created = db.now_iso()
     cj = json.dumps(cites, ensure_ascii=False) if cites is not None else None
+    options_json = json.dumps(learning_options, ensure_ascii=False) if learning_options else None
     mid = db.execute("INSERT INTO chat_messages (video_id, conversation_id, role, content, citations_json, created_at, status,"
-                     " evidence_version) VALUES (?,?,?,?,?,?,?,?)",
-                     (video_id, conversation_id, role, content, cj, created, status, version))
+                     " evidence_version, learning_options_json) VALUES (?,?,?,?,?,?,?,?,?)",
+                     (video_id, conversation_id, role, content, cj, created, status, version, options_json))
     db.execute('UPDATE chat_conversations SET updated_at=? WHERE video_id=? AND id=?',
                (created, video_id, conversation_id))
     msg = {"id": mid, "role": role, "content": content, "citations": cites or [], "status": status,
            "stale": False, "created_at": created}
     if status == "failed":
         msg["error"] = CITATION_ERROR
+    if learning_options:
+        msg["learning_options"] = learning_options
     return msg
 
 
@@ -161,14 +170,22 @@ def _fix_citations(ctx: QaContext, messages: list[dict], answer: str, invalid: l
 # ---------------------------------------------------------------- 一轮问答
 
 def ask(video_id: str, question: str, *, node_id: str | None = None,
-        allow_outline_edit: bool = False, note_target: dict | None = None, pdf_target: dict | None = None) -> Iterator[dict]:
+        allow_outline_edit: bool = False, note_target: dict | None = None, pdf_target: dict | None = None,
+        learning_action: str | None = None, learning_prompt: str | None = None,
+        learning_scope: str | None = None, learning_parent_question: str | None = None) -> Iterator[dict]:
     from ..codex import settings as codex_settings
     from . import codex_chat
     provider = codex_settings.get()['provider']
-    if provider == 'learning_agent':
-        from .learning_agent import chat as learning_chat
-        yield from learning_chat.ask(video_id, question, node_id=node_id, allow_outline_edit=allow_outline_edit,
-                                     note_target=note_target, pdf_target=pdf_target)
+    if provider == 'stepwise_qa':
+        from .stepwise_qa import chat as stepwise_chat
+        yield from stepwise_chat.ask(video_id, question, node_id=node_id, allow_outline_edit=allow_outline_edit,
+                                     note_target=note_target, pdf_target=pdf_target,
+                                     learning_action=learning_action,
+                                     learning_prompt=learning_prompt, learning_scope=learning_scope,
+                                     learning_parent_question=learning_parent_question)
+        return
+    if learning_action is not None:
+        yield {"type": "error", "error": "知识拓展选项仅适用于教学 Agent，请切换回教学 Agent 后重试"}
         return
     if provider == 'codex':
         options = {'pdf_target': pdf_target} if pdf_target is not None else {}

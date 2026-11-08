@@ -42,13 +42,13 @@ def _record(response, model: str, video_id: str | None, stage: str) -> None:
         return
     config = settings.get()
     try:
-        db.record_usage(video_id=video_id, stage=f"learning_agent:{stage}",
-                        provider=f"Learning Agent ({config['provider']})", model=model,
+        db.record_usage(video_id=video_id, stage=f"stepwise_qa:{stage}",
+                        provider=f"Stepwise QA Agent ({config['provider']})", model=model,
                         input_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
                         output_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
                         cache_read_tokens=int(getattr(getattr(usage, "prompt_tokens_details", None), "cached_tokens", 0) or 0))
     except Exception:  # usage tracking must not fail a teaching turn
-        log.exception("记录教学 Agent 用量失败")
+        log.exception("记录步进式问答 Agent 用量失败")
 
 
 def _params(model: str, max_tokens: int, effort: str | None, json_mode: bool) -> dict:
@@ -87,7 +87,7 @@ def complete(*, messages: list[dict], system: str | list | None = None, max_toke
     _record(response, model, video_id, stage)
     choice = response.choices[0]
     if choice.finish_reason == "length":
-        raise LLMTruncatedError("模型输出被截断（推理占满了输出上限），请在教学 Agent 设置中关闭思考或提高输出上限后重试")
+        raise LLMTruncatedError("模型输出被截断（推理占满了输出上限），请在步进式问答 Agent 设置中关闭思考或提高输出上限后重试")
     if choice.finish_reason == "content_filter":
         raise LLMRefusalError("模型拒绝了该请求")
     return choice.message.content or ""
@@ -116,7 +116,7 @@ def complete_structured(*, messages: list[dict], response_model: type[M], system
             return response_model.model_validate_json(text)
         except (ValidationError, ValueError, json.JSONDecodeError) as error:
             if attempt >= retries:
-                raise LLMError(f"教学 Agent 返回内容无法解析为要求的结构化数据：{error}") from error
+                raise LLMError(f"步进式问答 Agent 返回内容无法解析为要求的结构化数据：{error}") from error
             convo = convo + [{"role": "assistant", "content": text},
                              {"role": "user", "content": (
                                  f"上一次结果未通过 Pydantic 字段校验：{error}\n"
@@ -128,11 +128,11 @@ def complete_structured(*, messages: list[dict], response_model: type[M], system
 def _raise_provider_error(error: Exception) -> None:
     import openai
     if isinstance(error, openai.AuthenticationError):
-        raise LLMError("教学 Agent API Key 无效或已失效") from error
+        raise LLMError("步进式问答 Agent API Key 无效或已失效") from error
     if isinstance(error, openai.RateLimitError):
-        raise LLMError("教学 Agent 接口限流或账户额度不足") from error
+        raise LLMError("步进式问答 Agent 接口限流或账户额度不足") from error
     if isinstance(error, openai.APIConnectionError):
-        raise LLMError("无法连接教学 Agent 模型接口，请检查网络和接口地址") from error
+        raise LLMError("无法连接步进式问答 Agent 模型接口，请检查网络和接口地址") from error
     if isinstance(error, openai.APIStatusError):
-        raise LLMError(f"教学 Agent 模型接口错误（HTTP {error.status_code}）：{error.message}") from error
-    raise LLMError(f"教学 Agent 调用失败：{error}") from error
+        raise LLMError(f"步进式问答 Agent 模型接口错误（HTTP {error.status_code}）：{error.message}") from error
+    raise LLMError(f"步进式问答 Agent 调用失败：{error}") from error

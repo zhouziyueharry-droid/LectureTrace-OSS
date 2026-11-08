@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from . import llm, settings
 
-router = APIRouter(prefix="/api/learning-agent", tags=["learning-agent"])
+router = APIRouter(prefix="/api/stepwise-qa", tags=["stepwise-qa"])
 
 
 class AgentSettingsUpdate(BaseModel):
@@ -37,7 +37,7 @@ def put_agent_settings(body: AgentSettingsUpdate):
 def test_agent_connection():
     config = settings.get()
     if not config["has_key"]:
-        return {"ok": False, "message": "请先填写教学 Agent 专属 API Key"}
+        return {"ok": False, "message": "请先填写步进式问答 Agent 专属 API Key"}
     try:
         text = llm.complete(messages=[{"role": "user", "content": "请只回复：连接成功"}],
                             system="你正在进行接口连通性测试，只回复指定短语。", max_tokens=64,

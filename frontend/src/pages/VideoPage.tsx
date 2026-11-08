@@ -38,6 +38,7 @@ function VideoPage({ id }: { id: string }) {
   const { video, loadError, notFound, live, conn, refresh } = useVideoProgress(id)
   const { courses, videos: allVideos } = useLibrary()
   const videoRef = useRef<HTMLVideoElement>(null)
+  const pendingCitationSeek = useRef<number | null>(null)
   const [currentTime, setCurrentTime] = useState(0)
   const layout = useLayoutPrefs()
   // 网格的实际尺寸：决定 Agent 放右侧还是视频下方、各栏能拖多宽、视频画面多大
@@ -209,15 +210,45 @@ function VideoPage({ id }: { id: string }) {
   }, [video?.title])
 
   const seek = useCallback((t: number) => {
-    const v = videoRef.current
-    if (!v || !Number.isFinite(t)) return
+    if (!Number.isFinite(t)) return
     layout.setVideoHidden(false)
-    v.currentTime = Math.max(0, t)
+    pendingCitationSeek.current = Math.max(0, t)
+    const v = videoRef.current
+    // Citation clicks can arrive before the browser has loaded video metadata.
+    // In that state currentTime assignments may be ignored or throw; retain the
+    // target and apply it once duration/timeline information is available.
+    if (!v || v.readyState < HTMLMediaElement.HAVE_METADATA) return
+    const target = Number.isFinite(v.duration) && v.duration > 0
+      ? Math.min(pendingCitationSeek.current, v.duration)
+      : pendingCitationSeek.current
+    pendingCitationSeek.current = null
+    try {
+      v.currentTime = target
+    } catch {
+      pendingCitationSeek.current = target
+      return
+    }
     void v.play().catch(() => {
       /* 浏览器可能阻止自动播放，忽略 */
     })
-    setCurrentTime(t)
+    setCurrentTime(target)
   }, [layout.setVideoHidden])
+
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v) return
+    const applyPendingSeek = () => {
+      const target = pendingCitationSeek.current
+      if (target !== null && v.readyState >= HTMLMediaElement.HAVE_METADATA) seek(target)
+    }
+    v.addEventListener('loadedmetadata', applyPendingSeek)
+    v.addEventListener('durationchange', applyPendingSeek)
+    applyPendingSeek()
+    return () => {
+      v.removeEventListener('loadedmetadata', applyPendingSeek)
+      v.removeEventListener('durationchange', applyPendingSeek)
+    }
+  }, [id, video?.id, seek])
 
   const onTime = useCallback((t: number) => {
     setCurrentTime((prev) => (Math.abs(prev - t) >= 0.5 ? t : prev))

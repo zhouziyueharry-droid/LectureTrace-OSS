@@ -1,9 +1,10 @@
-"""Independent model settings for the teaching agent."""
+"""Independent model settings for the stepwise QA agent."""
 from __future__ import annotations
 
 from ... import db
 
-SETTING_KEY = "learning_agent_settings"
+SETTING_KEY = "stepwise_qa_settings"
+LEGACY_SETTING_KEY = "learning_agent_settings"
 PROVIDERS = {
     "deepseek": "https://api.deepseek.com",
     "openai": "https://api.openai.com/v1",
@@ -21,7 +22,14 @@ DEFAULTS = {
 
 
 def _stored() -> dict:
-    return db.get_setting(SETTING_KEY, {}) or {}
+    stored = db.get_setting(SETTING_KEY, None)
+    legacy = db.get_setting(LEGACY_SETTING_KEY, None)
+    if stored is None and legacy is not None:
+        stored = legacy
+    if legacy is not None:
+        db.set_setting(SETTING_KEY, stored or {})
+        db.execute("DELETE FROM app_settings WHERE key = ?", (LEGACY_SETTING_KEY,))
+    return stored or {}
 
 
 def get() -> dict:
@@ -70,7 +78,7 @@ def update(values: dict) -> dict:
 def api_key() -> str:
     key = str(_stored().get("api_key") or "").strip()
     if not key:
-        raise ValueError("请先在教学 Agent 设置中填写 API Key")
+        raise ValueError("请先在步进式问答 Agent 设置中填写 API Key")
     return key
 
 

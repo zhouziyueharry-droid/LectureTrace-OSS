@@ -4,9 +4,11 @@ import {
   logoutCodex, saveCodexSettings, type CodexSettings, type CodexStatus,
 } from '../api.ts'
 import { quotaText } from './QuotaStatus.tsx'
-import LearningAgentSettings from './LearningAgentSettings.tsx'
+import StepwiseQaSettings from './StepwiseQaSettings.tsx'
 
-export default function CodexCard() {
+type Props = { onProviderChange?: (provider: CodexSettings['provider']) => void }
+
+export default function CodexCard({ onProviderChange }: Props) {
   const [settings, setSettings] = useState<CodexSettings | null>(null)
   const [status, setStatus] = useState<CodexStatus | null>(null)
   const [login, setLogin] = useState<{ login_id: string; auth_url: string } | null>(null)
@@ -16,9 +18,9 @@ export default function CodexCard() {
 
   useEffect(() => {
     let active = true
-    getCodexSettings().then((s) => active && setSettings(s), (e) => active && setError(errorText(e)))
+    getCodexSettings().then((s) => { if (active) { setSettings(s); onProviderChange?.(s.provider) } }, (e) => active && setError(errorText(e)))
     return () => { active = false }
-  }, [])
+  }, [onProviderChange])
 
   useEffect(() => {
     if (settings?.provider !== 'codex') return
@@ -68,16 +70,30 @@ export default function CodexCard() {
           <>
             <label className="field">
               <span>问答服务</span>
-              <select className="lang-select" value={settings.provider} disabled={busy || !!login} onChange={(e) => change({ provider: e.target.value as CodexSettings['provider'] })}>
+              <select className="lang-select" value={settings.provider} disabled={busy || !!login} onChange={(e) => {
+                const provider = e.target.value as CodexSettings['provider']
+                change({ provider })
+                onProviderChange?.(provider)
+              }}>
                 <option value="api">API 模型</option>
                 <option value="codex">Codex（ChatGPT 登录）</option>
-                <option value="learning_agent">教学 Agent（LangGraph）</option>
+                <option value="stepwise_qa">步进式问答 Agent（LangGraph）</option>
               </select>
             </label>
-            {settings.provider === 'learning_agent' && (
+            {settings.provider === 'stepwise_qa' && (
               <>
-                <p className="muted small">按教学步骤检索课程证据、组织解释并检查引用与讲解连贯性。先保存下方独立模型设置，再保存本页以启用教学 Agent。</p>
-                <LearningAgentSettings />
+                <p className="muted small">按教学步骤检索课程证据、组织解释并检查引用与讲解连贯性。点击下方按钮会先保存模型 API 配置，再启用步进式问答 Agent。</p>
+                <StepwiseQaSettings onEnable={async () => {
+                  if (!settings) throw new Error('问答运行方式尚未加载')
+                  setBusy(true)
+                  setError(null)
+                  try {
+                    const updated = await saveCodexSettings({ ...settings, provider: 'stepwise_qa' })
+                    setSettings(updated)
+                    onProviderChange?.(updated.provider)
+                    setSaved(true)
+                  } finally { setBusy(false) }
+                }} enableBusy={busy} />
               </>
             )}
             {settings.provider === 'codex' && (
@@ -107,10 +123,15 @@ export default function CodexCard() {
                 </details>
               </>
             )}
-            <div className="settings-actions">
-              <button className="btn btn-primary" disabled={busy || !settings.model.trim() || !settings.workspace_root.trim()} onClick={() => void action(async () => { setSettings(await saveCodexSettings(settings)); setSaved(true) })}>{busy ? '处理中…' : settings.provider === 'learning_agent' ? '启用教学 Agent' : '保存问答设置'}</button>
+            {settings.provider !== 'stepwise_qa' && <div className="settings-actions">
+              <button className="btn btn-primary" disabled={busy || !settings.model.trim() || !settings.workspace_root.trim()} onClick={() => void action(async () => {
+                const updated = await saveCodexSettings(settings)
+                setSettings(updated)
+                onProviderChange?.(updated.provider)
+                setSaved(true)
+              })}>{busy ? '处理中…' : '保存问答设置'}</button>
               {saved && <span className="ok-text small" role="status">已保存</span>}
-            </div>
+            </div>}
           </>
         )}
       </div>

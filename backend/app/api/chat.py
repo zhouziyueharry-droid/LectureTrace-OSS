@@ -5,6 +5,7 @@ import importlib
 import asyncio
 import json
 import queue
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -31,6 +32,11 @@ class AskBody(BaseModel):
     allow_outline_edit: bool = False
     note_target: NoteTarget | None = None
     pdf_target: PdfTarget | None = None
+    learning_action: Literal['clarify', 'formula', 'example', 'slides', 'course_context', 'prerequisite', 'analogy',
+                             'counterexample', 'comparison', 'application', 'practice', 'custom'] | None = None
+    learning_prompt: str | None = Field(default=None, max_length=180)
+    learning_scope: Literal['course', 'supplement'] | None = None
+    learning_parent_question: str | None = Field(default=None, max_length=4000)
     run_id: str | None = Field(default=None, max_length=80, pattern=r'^[A-Za-z0-9-]+$')
 
 
