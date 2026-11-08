@@ -74,6 +74,8 @@ class OllamaTranslateParams:
     timeout_s: int = 180
     max_input_chars: int = 2000
     max_context_chars: int = 1000
+    request_attempts: int = 5
+    retry_delay_s: float = 2.0
 
 
 @dataclass(frozen=True)

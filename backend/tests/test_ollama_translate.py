@@ -104,3 +104,72 @@ def test_long_input_does_not_generate(data_dir, monkeypatch):
     with pytest.raises(StageError, match='太长'):
         OllamaTranslator().translate([{'id': '1', 'text': 'x' * 2001}], [], [])
     assert len(calls) == 1
+
+
+def test_runner_failure_retries_same_cue_and_saves_once(data_dir, monkeypatch):
+    from app.pipeline import ollama_translate as local
+    db.set_setting('translation_provider', 'ollama')
+    artifacts.write_artifact('retry', 'cues.json', [
+        {'id': '1', 'text': 'old', 'zh': '已有', 'start': 0, 'end': 1},
+        {'id': '2', 'text': 'hello', 'zh': None, 'start': 1, 'end': 2}], {})
+    payloads, sleeps = [], []
+    failures = [
+        'Post "http://127.0.0.1:8262/tokenize": dial tcp 127.0.0.1:8262: connectex: failed',
+        'model runner has unexpectedly stopped, check ollama server logs for details',
+        'health resp: Get "http://127.0.0.1:8262/health": dial tcp 127.0.0.1:8262: connectex: failed',
+        'Post "http://127.0.0.1:8262/completion": dial tcp 127.0.0.1:8262: connectex: failed',
+    ]
+    def request(method, url, **kwargs):
+        if url.endswith('/tags'):
+            return httpx.Response(200, json={'models': [
+                {'name': config.settings.ollama_translate.model, 'size': 1}]})
+        payloads.append(kwargs['json'])
+        if len(payloads) <= len(failures):
+            return httpx.Response(500, json={'error': failures[len(payloads) - 1]})
+        return httpx.Response(200, json={'response': '你好', 'done': True, 'done_reason': 'stop'})
+    monkeypatch.setattr(local.httpx, 'request', request)
+    import time
+    monkeypatch.setattr(time, 'sleep', sleeps.append)
+    translate.run(StageContext('retry', 'translate'))
+    assert len(payloads) == 5 and all(p == payloads[0] for p in payloads)
+    assert len(sleeps) == 4 and all(delay > 0 for delay in sleeps)
+    assert [c['zh'] for c in artifacts.read_artifact('retry', 'cues.json')] == ['已有', '你好']
+    assert len(db.fetch_all("SELECT * FROM api_usage WHERE video_id = 'retry'")) == 1
+
+
+@pytest.mark.parametrize('body,status,retries', [
+    ({'error': 'dial tcp 127.0.0.1:8262: connectex: private'}, 500, True),
+    ({'error': 'out of memory private'}, 500, False),
+    ({'error': 'model not found private'}, 404, False),
+    ({'error': 'dial tcp example.com:80: private'}, 500, False),
+    (['private'], 500, False),
+])
+def test_runner_retries_are_bounded_and_specific(data_dir, monkeypatch, body, status, retries):
+    from app.pipeline import ollama_translate as local
+    calls = []
+    def request(*args, **kwargs):
+        calls.append(kwargs)
+        return httpx.Response(status, json=body)
+    monkeypatch.setattr(local.httpx, 'request', request)
+    import time
+    monkeypatch.setattr(time, 'sleep', lambda _: None)
+    with pytest.raises(StageError) as error:
+        local.request('/api/generate', {'prompt': 'hello'})
+    assert len(calls) == (5 if retries else 1)
+    assert 'private' not in str(error.value)
+
+
+@pytest.mark.parametrize('error_type', [httpx.ConnectError, httpx.ConnectTimeout])
+def test_local_connection_recovers_within_same_request(data_dir, monkeypatch, error_type):
+    from app.pipeline import ollama_translate as local
+    calls = []
+    def request(*args, **kwargs):
+        calls.append(kwargs['json'])
+        if len(calls) == 1:
+            raise error_type('private')
+        return httpx.Response(200, json={'response': '你好', 'done': True, 'done_reason': 'stop'})
+    monkeypatch.setattr(local.httpx, 'request', request)
+    import time
+    monkeypatch.setattr(time, 'sleep', lambda _: None)
+    assert local.request('/api/generate', {'prompt': 'hello'})['response'] == '你好'
+    assert calls == [{'prompt': 'hello'}] * 2

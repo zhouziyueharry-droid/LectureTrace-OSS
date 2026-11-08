@@ -34,6 +34,8 @@ flowchart LR
 
 `pipeline/runner.py` owns the stage queue, checkpoints, failure state and resumption. CPU/image stages operate locally. External model stages use `llm/` and the user's configured provider. `pipeline/send_plan.py` exposes the proposed content and approximate costs before confirmation. Ollama subtitle translation uses a local service.
 
+Local Ollama generation retries connection failures and HTTP 500 responses identifying a stopped runner or a loopback connection failure. The same subtitle gets at most five attempts with 2/4/6/8-second delays; other failures remain explicit. Per-cue checkpoints preserve completed translations. These retry parameters are included in artifact parameters; explicitly rerunning a completed translation with changed parameters retains the existing retranslation behavior. This tolerates transient failures, but does not resolve the underlying Ollama/Windows runner instability.
+
 ## 4. Q&A and editing
 
 API Q&A and optional Codex Q&A live under `qa/` and `codex/`. Persistent chat runs separate backend work from a connected browser observer so refreshes can recover state. Notes support history and suggestions. PDF references bind a document identity, revision and page; extracted text is not a guarantee of complete visual understanding.

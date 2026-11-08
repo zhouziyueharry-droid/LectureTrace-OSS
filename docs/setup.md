@@ -44,6 +44,8 @@ Select services in Settings. DeepSeek Flash has a separate key and is restricted
 
 Ollama translation connects only to `http://127.0.0.1:11434` and expects the local model `hf.co/tencent/Hy-MT2-7B-GGUF:Q4_K_M`. Install Ollama and download that model separately; its license and hardware requirements are independent of this project. This path translates English subtitles into Simplified Chinese.
 
+Transient local generation failures (`ConnectError`, `ConnectTimeout`, or HTTP 500 containing `dial tcp 127.0.0.1:` / `model runner has unexpectedly stopped`) retry the same subtitle up to five attempts, including the first, with 2/4/6/8-second waits. Other HTTP errors, read timeouts, invalid JSON, and empty/truncated output do not retry. Model-list checks still make one request. Completed subtitles are saved individually; after retries are exhausted, resume from the checkpoint using Retry. Logs report attempt counts and delays without raw error bodies or subtitle text.
+
 API translation/reading/outline/Q&A can incur provider charges. A connection check does not verify generation quality or available balance. Do not use real calls in automated tests.
 
 Codex Q&A is optional and requires a compatible Codex CLI and login through the application's settings. Its course workspace must be outside the project directory. API Q&A remains available without the Codex runtime. Runtime capability checks, account access and model entitlements are separate from this repository's MIT license.
