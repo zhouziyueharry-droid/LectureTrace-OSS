@@ -158,6 +158,15 @@ class PdfParams:
 
 
 @dataclass(frozen=True)
+class McpParams:
+    page_size: int = 50
+    max_queries: int = 8
+    max_query_chars: int = 1000
+    text_chunk_chars: int = 24000
+    max_request_bytes: int = 65536
+
+
+@dataclass(frozen=True)
 class Settings:
     data_dir: Path = Path(os.getenv("DATA_DIR", str(ROOT_DIR / "data")))
     anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
@@ -185,6 +194,8 @@ class Settings:
     pdfs: PdfParams = field(default_factory=PdfParams)
     google_translate_api_key: str = os.getenv("GOOGLE_TRANSLATE_API_KEY", "")
     ollama_translate: OllamaTranslateParams = field(default_factory=OllamaTranslateParams)
+    mcp: McpParams = field(default_factory=McpParams)
+    mcp_token: str = os.getenv("LECTURETRACE_MCP_TOKEN", "")
 
     def translation_provider(self) -> str:
         from . import db

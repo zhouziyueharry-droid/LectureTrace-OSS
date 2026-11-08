@@ -1,5 +1,7 @@
 # Architecture
 
+Architecture revision: MCP preview, 2026-11-08.
+
 LectureTrace is a single-process local application. FastAPI serves the API and, after a frontend build, the React application. SQLite stores course, stage, conversation and settings records; file artifacts live under the configured local data directory.
 
 ## 1. Application boundaries
@@ -43,3 +45,11 @@ Key artifacts include `transcript.json`, `cues.json`, subtitle VTTs, `keyframes.
 ## 6. Packages and trust
 
 `course_packages.py` exports/imports versioned ZIP-based `.ltcourse` packages. Validation checks file names, hashes, sizes and metadata; imports reject duplicates and roll back on failure. Packages contain content, not application credentials. PDF processing uses bounded subprocesses. This architecture does not make the application a sandbox for arbitrary hostile workloads or a multi-user hosted service.
+
+## 7. Read-only MCP
+
+The optional `mcp` extra adds `app/mcp_server.py`. Standard clients use either stdio (`python -m app.mcp_server`) or the web backend's Streamable HTTP `/mcp` endpoint. Both expose the same five tools and use the existing DATA_DIR. MCP never invokes the Codex runtime or another model. Stdio opens SQLite read-only and does not initialize the database or start a processing worker. HTTP shares the web application's normal lifecycle; its processing worker remains responsible for any existing web jobs.
+
+`qa/evidence_reader.py` owns shared search, text expansion and image selection. The web `CourseWorkspace` subclasses it and retains its note/workspace migration, read logging and final-citation validation. MCP uses the reader without those side effects, reads outlines without migration, and returns evidence versions and source labels. Clients' generated answers are not automatically validated by the web citation checker.
+
+HTTP requires a local bearer token and the SDK's Host/Origin checks. An unset token disables HTTP access; stdio relies on local process permissions. Synchronous file/query work runs in a thread so it does not block the web event loop. Lists, context and text have continuation fields; tool output includes standard text (JSON fallback), structured content, and JPEG image content. No database schema, course artifact format or pipeline parameter changes are required. See [MCP setup and contracts](docs/mcp.md) and [validation](docs/proposals/0027-experiments/README.md).

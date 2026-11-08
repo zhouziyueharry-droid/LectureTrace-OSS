@@ -2,7 +2,7 @@
 
 **Turn local lecture recordings into a workspace you can trace back to the source.**
 
-[简体中文](docs/README.zh-CN.md) · [Setup](docs/setup.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
+[简体中文](docs/README.zh-CN.md) · [Setup](docs/setup.md) · [MCP](docs/mcp.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 ![CI](https://github.com/zhouziyueharry-droid/LectureTrace-OSS/actions/workflows/ci.yml/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -17,6 +17,7 @@ LectureTrace is a local desktop-browser application for studying recorded lectur
 - Generate timestamped subtitles with optional local Whisper ASR; translate subtitles with DeepL, Google, an API model, or local Ollama.
 - Extract slides from a user-confirmed region and generate a timestamped outline.
 - Ask questions with source references through an API model or an optional Codex runtime.
+- Let any compatible MCP client search existing videos, read evidence and view slides through optional standard stdio or Streamable HTTP tools.
 - Edit Markdown notes, read and annotate PDFs, and work in a resizable reading workspace.
 - Export and import processed lectures or complete courses as `.ltcourse` packages.
 

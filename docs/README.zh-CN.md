@@ -4,7 +4,7 @@
 
 **项目发起人和主要维护者：** [Harry（@zhouziyueharry-droid）](https://github.com/zhouziyueharry-droid)。
 
-[English](../README.md) · [安装与配置](setup.md) · [贡献指南](../CONTRIBUTING.md)
+[English](../README.md) · [安装与配置](setup.md) · [MCP 接入](mcp.md) · [贡献指南](../CONTRIBUTING.md)
 
 ## 功能
 
@@ -12,6 +12,7 @@
 - 可选本机 Whisper 转录；使用 DeepL、Google、API 模型或 Ollama 翻译字幕。
 - 确认幻灯片区域后抽帧，生成带时间戳的大纲。
 - 通过 API 模型或可选 Codex runtime 问答，沿时间戳和 PDF 引用核对来源。
+- 通过标准 MCP（stdio / Streamable HTTP）让兼容的 AI 客户端搜索已有视频、读取讲解证据和查看幻灯片。
 - Markdown 笔记、PDF 阅读与批注、可调整分栏的阅读工作区。
 - 导出单讲或整门课的 `.ltcourse` 包，在另一台设备恢复已处理资料。
 

@@ -38,7 +38,7 @@ jobs:
         run: |
           ffmpeg -version
           ffprobe -version
-      - run: uv sync --directory backend --locked
+      - run: uv sync --directory backend --locked --extra mcp
       - run: uv run --directory backend --no-sync pytest -q
       - name: Audit base Python environment
         if: runner.os == 'Linux'

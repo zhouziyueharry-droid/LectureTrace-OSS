@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import logging
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -22,6 +22,15 @@ from .pipeline import runner
 HOST, PORT = "127.0.0.1", 8000
 FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"
 
+try:
+    from .mcp_server import McpHTTP
+except ModuleNotFoundError as exc:
+    if exc.name != "mcp":
+        raise
+    mcp_http = None
+else:
+    mcp_http = McpHTTP()
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 
@@ -32,13 +41,22 @@ async def lifespan(app: FastAPI):
     db.init_db()
     runner.start_worker()
     try:
-        yield
+        async with AsyncExitStack() as stack:
+            if mcp_http is not None:
+                await stack.enter_async_context(mcp_http.lifespan())
+            yield
     finally:
         from .codex.runtime import close_runtime
         close_runtime()
 
 
 app = FastAPI(title="LectureTrace", lifespan=lifespan)
+if mcp_http is not None:
+    app.add_route("/mcp", mcp_http, methods=["GET", "POST", "DELETE"])
+else:
+    @app.api_route("/mcp", methods=["GET", "POST", "DELETE"], include_in_schema=False)
+    def mcp_unavailable():
+        raise HTTPException(503, "Install the optional mcp extra to enable MCP")
 app.include_router(packages.router)
 app.include_router(videos.router)
 app.include_router(courses.router)
