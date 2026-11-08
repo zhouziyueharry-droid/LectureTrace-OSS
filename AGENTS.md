@@ -2,6 +2,8 @@
 
 当前：MCP 分支增加标准只读视频工具；实现和验收见 [MCP](docs/mcp.md)、[0027](docs/proposals/0027-mcp.md)、[交接](docs/proposals/0027-handoff.md)、[实验](docs/proposals/0027-experiments/README.md)。
 
+2026-11-08：新增图片定位时间 → 单元简介 → 按需转写/截图的八工具流程；[0028 提案](docs/proposals/0028-slide-location.md)、[交接](docs/proposals/0028-handoff.md)、[验收](docs/proposals/0028-experiments/README.md)。SIFT/RANSAC 复用 OpenCV，无 embedding；单元沿用 section，一次出现与整页的所有出现不能混同。
+
 - 产品与启动：[README](README.md)、[中文说明](docs/README.zh-CN.md)、[Setup](docs/setup.md)。
 - 当前架构：[ARCHITECTURE](ARCHITECTURE.md)。MCP 工具契约在 [docs/mcp.md](docs/mcp.md)。
 - `backend/app/mcp_server.py` 提供通用 MCP；`qa/evidence_reader.py` 与网页共享读取逻辑。不要从 stdio 入口导入 `app.main` 或启动 runner。

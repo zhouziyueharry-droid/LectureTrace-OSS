@@ -158,13 +158,27 @@ class PdfParams:
 
 
 @dataclass(frozen=True)
+class SlideMatchParams:
+    max_image_bytes: int = 3 * 1024 * 1024
+    max_image_pixels: int = 12_000_000
+    long_edge: int = 960
+    max_features: int = 1200
+    ratio_test: float = 0.7
+    ransac_pixels: float = 4.0
+    min_inliers: int = 12
+    min_inlier_ratio: float = 0.5
+    min_feature_fraction: float = 0.12
+    min_coverage: float = 0.12
+
+
+@dataclass(frozen=True)
 class McpParams:
     page_size: int = 50
     max_queries: int = 8
     max_query_chars: int = 1000
     text_chunk_chars: int = 24000
     summary_chars: int = 600
-    max_request_bytes: int = 65536
+    max_request_bytes: int = 4 * 1024 * 1024 + 65536  # JSON base64 for a bounded 3 MiB image.
 
 
 @dataclass(frozen=True)
@@ -196,6 +210,7 @@ class Settings:
     google_translate_api_key: str = os.getenv("GOOGLE_TRANSLATE_API_KEY", "")
     ollama_translate: OllamaTranslateParams = field(default_factory=OllamaTranslateParams)
     mcp: McpParams = field(default_factory=McpParams)
+    slide_match: SlideMatchParams = field(default_factory=SlideMatchParams)
     mcp_token: str = os.getenv("LECTURETRACE_MCP_TOKEN", "")
 
     def translation_provider(self) -> str:

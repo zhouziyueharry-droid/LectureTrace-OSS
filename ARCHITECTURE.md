@@ -1,6 +1,6 @@
 # Architecture
 
-Architecture revision: MCP preview, 2026-11-08.
+Architecture revision: MCP slide location and progressive units, 2026-11-08.
 
 LectureTrace is a single-process local application. FastAPI serves the API and, after a frontend build, the React application. SQLite stores course, stage, conversation and settings records; file artifacts live under the configured local data directory.
 
@@ -48,8 +48,23 @@ Key artifacts include `transcript.json`, `cues.json`, subtitle VTTs, `keyframes.
 
 ## 7. Read-only MCP
 
-The optional `mcp` extra adds `app/mcp_server.py`. Standard clients use either stdio (`python -m app.mcp_server`) or the web backend's Streamable HTTP `/mcp` endpoint. Both expose the same five tools and use the existing DATA_DIR. MCP never invokes the Codex runtime or another model. Stdio opens SQLite read-only and does not initialize the database or start a processing worker. HTTP shares the web application's normal lifecycle; its processing worker remains responsible for any existing web jobs.
+The optional `mcp` extra adds `app/mcp_server.py`. Standard clients use either stdio (`python -m app.mcp_server`) or the web backend's Streamable HTTP `/mcp` endpoint. Both expose the same eight tools and use the existing DATA_DIR. MCP never invokes the Codex runtime or another model. Stdio opens SQLite read-only and does not initialize the database or start a processing worker. HTTP shares the web application's normal lifecycle; its processing worker remains responsible for any existing web jobs.
 
 `qa/evidence_reader.py` owns shared search, text expansion and image selection. The web `CourseWorkspace` subclasses it and retains its note/workspace migration, read logging and final-citation validation. MCP uses the reader without those side effects, reads outlines without migration, and returns evidence versions and source labels. Clients' generated answers are not automatically validated by the web citation checker.
 
 HTTP requires a local bearer token and the SDK's Host/Origin checks. An unset token disables HTTP access; stdio relies on local process permissions. Synchronous file/query work runs in a thread so it does not block the web event loop. Lists, context and text have continuation fields; tool output includes standard text (JSON fallback), structured content, and JPEG image content. No database schema, course artifact format or pipeline parameter changes are required. See [MCP setup and contracts](docs/mcp.md) and [validation](docs/proposals/0027-experiments/README.md).
+
+### Progressive video-unit access
+
+`qa/slide_locator.py` matches a client-provided PNG/JPEG against a selected video's existing screenshots using SIFT and RANSAC. It only locates candidate timestamps and section IDs. No query images, page mappings, or index files are persisted; a bounded in-process feature cache accelerates repeated queries. Query byte/pixel limits and geometric thresholds live in `SlideMatchParams`. Native dependencies load before stdio starts its read loop to avoid Windows worker-thread initialization stalls.
+
+```mermaid
+flowchart LR
+  A[Client-rendered PPT page] --> B[locate_slide: candidate timestamps]
+  B --> C[get_video_units: existing summaries]
+  C --> D{Agent needs more?}
+  D --> E[read_video_unit: all assigned transcript chunks]
+  D --> F[view_slide: original screenshot]
+```
+
+A unit is an existing continuous appearance (`S012.1`) or no-slide section (`N001`), not a new semantic segmentation. Timestamp lookup considers half-open display and speech intervals and preserves overlapping boundaries. Previews disclose missing/partial generated summaries without loading transcript bodies into tool responses. `read_video_unit` expands the exact `t_ids` set and exposes text continuation; missing members are errors. Existing `read_evidence` retains its original page/summary/speech semantics. The web already has short-index navigation; this addition provides the missing explicit unit workflow in MCP without replacing the web runtime. See [0028 validation](docs/proposals/0028-experiments/README.md).

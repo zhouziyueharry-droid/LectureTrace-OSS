@@ -7,6 +7,7 @@ import io
 import json
 from pathlib import Path
 import sys
+from datetime import timedelta
 
 import httpx
 import pytest
@@ -30,6 +31,8 @@ def library(course, tmp_settings, set_settings):
                (VID, "Synthetic lecture", "example.mp4", db.now_iso(), "done"))
     artifacts.write_artifact(VID, "outline.json", course[1], {})
     set_settings(dataclasses.replace(config.settings, mcp_token="synthetic-test-token"))
+    from test_slide_locator import slide
+    Image.fromarray(slide()).save(artifacts.video_dir(VID) / 'keyframes/S001.jpg')
     return config.settings.data_dir
 
 
@@ -50,13 +53,18 @@ async def exercise(session):
     assert initialized.serverInfo.name == "LectureTrace"
     tools = (await session.list_tools()).tools
     assert {t.name for t in tools} == {"list_videos", "get_video_context", "search_video", "read_evidence", "view_slide",
-                                      "get_video_units", "read_video_unit"}
+                                      "get_video_units", "read_video_unit", "locate_slide"}
     assert all(t.annotations.readOnlyHint and not t.annotations.destructiveHint for t in tools)
     assert all(t.inputSchema["type"] == "object" for t in tools)
     assert data(await session.call_tool("list_videos"))["videos"][0]["id"] == VID
     ctx = data(await session.call_tool("get_video_context", {"video_id": VID}))
     assert ctx["timeline"][0]["id"] == "N001"
     args = {"video_id": VID, "version": ctx["version"]}
+    from test_slide_locator import slide, encoded
+    located = data(await session.call_tool('locate_slide', {'video_id': VID, 'image_base64': encoded(slide())}))
+    assert located['matches'][0]['unit_id'] == 'S001.1'
+    assert located['version'] == ctx['version'] and located['matches'][0]['timestamp'] == 10
+    assert 'summary' not in located['matches'][0] and 'text' not in located['matches'][0]
     preview = data(await session.call_tool('get_video_units', {**args, 'timestamp': 30}))
     assert preview['units'][0]['summary'] == 'Why normalize each mini batch.'
     assert 'Gamma restores' not in str(preview)
@@ -81,6 +89,7 @@ async def exercise(session):
         ("delete_video", {"video_id": VID}),
         ('get_video_units', {**args, 'timestamp': -1}),
         ('read_video_unit', {**args, 'unit_id': 'S001'}),
+        ('locate_slide', {'video_id': VID, 'image_base64': 'not base64'}),
     ]:
         assert (await session.call_tool(name, arguments)).isError
 
@@ -109,7 +118,7 @@ def test_stdio_standard_client_and_no_writes(library):
                                       cwd=str(Path(__file__).resolve().parents[1]),
                                       env={"DATA_DIR": str(library), "LECTURETRACE_MCP_TOKEN": ""})
         async with stdio_client(params) as (rx, tx):
-            async with ClientSession(rx, tx) as session:
+            async with ClientSession(rx, tx, read_timeout_seconds=timedelta(seconds=20)) as session:
                 await exercise(session)
     asyncio.run(run())
     assert snapshot(library) == before
@@ -144,6 +153,14 @@ def test_pagination_missing_outline_and_path_escape(library, set_settings, tmp_p
         assert len(first["text"]) == 20 and first["next_text_offset"] == 20
         second = data(await server.call_tool("read_evidence", {**args, "text_offset": 20}))
         assert second["text_offset"] == 20
+        unit_args = {'video_id': VID, 'version': ctx['version'], 'unit_id': 'S001.1'}
+        chunks = []
+        offset = 0
+        while offset is not None:
+            chunk = data(await server.call_tool('read_video_unit', {**unit_args, 'text_offset': offset}))
+            chunks.append(chunk['text'])
+            offset = chunk['next_text_offset']
+        assert 'Gamma restores' in ''.join(chunks) and '[T0002]' in ''.join(chunks)
         (artifacts.video_dir(VID) / "outline.json").unlink()
         assert data(await server.call_tool("get_video_context", {"video_id": VID}))["chapters"] == []
         obj = artifacts.read_json(artifacts.video_dir(VID) / "evidence.json")
@@ -182,7 +199,7 @@ def test_plain_jsonrpc_client_versions(library, version):
             client.headers["MCP-Protocol-Version"] = version
             notification = await client.post("http://127.0.0.1:8000/mcp", json={"jsonrpc": "2.0", "method": "notifications/initialized"})
             assert notification.status_code == 202
-            assert len((await request("tools/list", {}))["tools"]) == 7
+            assert len((await request("tools/list", {}))["tools"]) == 8
             result = await request("tools/call", {"name": "list_videos", "arguments": {}})
             assert not result.get("isError")
             assert json.loads(result["content"][0]["text"])["videos"][0]["id"] == VID

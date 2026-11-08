@@ -2,7 +2,7 @@
 
 LectureTrace 的 MCP 是通用协议服务，不依赖 Codex 登录、app-server 或专有工具格式。支持 MCP 的客户端可选择 stdio 或 Streamable HTTP；客户端需要支持图片工具结果且所选模型具备视觉能力，才能利用幻灯片图片。
 
-首版读取已经处理的课程。五个工具不上传、删除、重跑视频，不写笔记、不调用模型。MCP 本身不产生模型调用费用，但客户端使用返回的课程材料时仍遵循该客户端的数据处理和计费方式。
+读取已经处理的课程。八个工具不导入、删除、重跑视频，不写笔记、不调用模型。图片定位接收客户端明确提供的查询图片，仅在内存里处理。MCP 本身不产生模型调用费用，但客户端使用返回的课程材料时仍遵循该客户端的数据处理和计费方式。
 
 ## 安装
 
@@ -60,12 +60,15 @@ codex mcp get lecturetrace
 
 HTTP 共享网页的现有处理队列；连接 MCP 本身不会提交任务，但正常网页后端启动可能恢复已有处理任务。stdio 不启动该队列。
 
-## 五个工具
+## 八个工具
 
 | 工具 | 参数 | 结果与下一步 |
 | --- | --- | --- |
 | `list_videos` | `offset=0` | 视频 ID、课程名、时长、状态；`next_offset` 分页 |
-| `get_video_context` | `video_id, offset=0` | 章节标题、时间目录、`version`；`next_offset` 分页。目录不证明读过原文 |
+| `get_video_context` | `video_id, offset=0` | 章节标题、单元简介和时间目录、`version`；`next_offset` 分页。目录不证明读过原文 |
+| `locate_slide` | `video_id, image_base64, offset=0` | 在指定视频内匹配 PNG/JPEG 页面；返回候选 `page_id`、`unit_id`、`timestamp`、结束时间、几何匹配诊断和 `version`，不附摘要、转写或图片；`next_offset` 分页 |
+| `get_video_units` | `video_id, version, timestamp, offset=0` | 返回该秒对应的单元简介、显示/语音边界、摘要状态和读取入口；不返回转写或图片 |
+| `read_video_unit` | `video_id, version, unit_id, text_offset=0` | 返回一次出现单元所属的全部 T 转写；按 `next_text_offset` 续读，不额外附图 |
 | `search_video` | `video_id, version, queries, offset=0` | 摘录、ID、起始秒数；`next_offset` 分页，需再读取正文 |
 | `read_evidence` | `video_id, version, ids, text_offset=0` | 带 ID、时间、来源标识的文字；支持 `T0001-T0005`；`next_text_offset` 继续相同 ids 的文本 |
 | `view_slide` | `video_id, version, id` | 标准 JPEG `ImageContent`，另附视频/证据 ID、时间与版本 |
@@ -74,12 +77,28 @@ HTTP 共享网页的现有处理队列；连接 MCP 本身不会提交任务，�
 
 从 context 获得 version 后传给其他证据工具；证据变化会拒绝过期请求，重新获取 context 再继续。请求没有全局“当前视频”，每次显式指定 ID，避免不同对话串课。MCP 不保存聊天记录和“已读”日志。
 
-输出边界由 `config.McpParams` 管理：目录每页 50 项；最多 8 条、每条 1000 字符的搜索词；每次读取最多 50 个 ID/区间、每块 24000 字符；HTTP 请求最大 65536 字节。这些是传输边界，不是处理算法阈值，不会让课程重跑。不要将文本分块误当成全文已读。
+## 从 PPT 页面到老师讲解
+
+推荐调用顺序：`locate_slide` → `get_video_units` → 按问题选择 `read_video_unit` / `view_slide`。图片定位返回的 version 同样可用于后续读取，不必先加载整讲目录。
+
+1. 客户端将当前 PPT/PDF 页渲染成 PNG/JPEG，再将文件字节编码为普通 base64 字符串传入 `image_base64`。不含 data-URL 前缀，不接受 URL、服务器文件路径或聊天附件 ID；服务不会自动读取客户端的 PPT。模型不应手工拼造 base64，应由客户端的文件/代码工具传递。
+2. `locate_slide` 只给定位候选，包括同页不同批注状态、回看时的独立单元。可用匹配结果里的 `timestamp` 调用 `get_video_units`，并用 `unit_id` 选择相应单元。`match` 里的 inliers、inlier_ratio、feature_fraction、coverage 是几何诊断值，不是匹配正确的概率。
+3. 单元是现有 section：一张画面的一次连续出现（`S012.1`），无画面讲解段为 `N001`。它不是新生成的“完整主题”；同一主题可能跨多个单元。按 `[start,end)` 查显示/语音区间；交界时语音归属可能重叠，因此返回所有相符单元，空档不猜最近的单元。
+4. 简介来自既有 `spoken_summary`，不会触发读图或生成摘要。`summary_status` 为 available / partial / missing；available 仅指存储摘要未被标记截断，不保证语义完整。简介最长 600 字符；没有简介仍可读取正文。`get_video_context.timeline` 保留原 id/start/end/page/speech_first/speech_last，并增加相同的简介字段。
+5. `read_video_unit` 依据准确的 `t_ids` 成员集合读取，而不是假定编号连续；成员缺失时报错。正文超过 24,000 字符时分块，直到 next_text_offset=null 才算读取全部。该接口只读转写，图片另用 view_slide 的 image_id 获取。旧 `read_evidence(S012.1)` 仍只读摘要，避免破坏原客户端。
+
+匹配使用已依赖的 OpenCV SIFT + ratio test + RANSAC，无 embedding、模型下载或独立向量库。全图特征覆盖检查用于降低只匹配到页眉/Logo 的风险，不能保证所有课件不误匹配。低特征图片会返回空结果；缺失/损坏的库内图片通过 skipped_images 披露。客户端应保留所有候选，关键匹配用原图确认，不把第一名当作自动确认。
+
+当前仅查询指定视频，扫描全部已登记的画面与出现截图。256 项进程内 LRU 缓存按图片路径、修改时间、大小和算法参数失效；不写磁盘索引或课件页码映射表，重启后首次查询重新提取特征。图片最长边缩到 960，最多 1200 个 SIFT 特征。首次调用延迟取决于视频截图数量，支持 next_offset 继续返回候选（不是扫描续跑）。
+
+stdio 在启动时加载原生图像依赖，避免 Windows 上在 MCP stdin 阻塞读取期间从工作线程首次初始化 NumPy 时卡住。无需启动网页，正常请求工作仍在线程中完成。
+
+输出边界由 `config.McpParams` 管理：目录每页 50 项；最多 8 条、每条 1000 字符的搜索词；每次读取最多 50 个 ID/区间、每块 24000 字符；HTTP 请求最大 4 MiB + 64 KiB，以容纳 base64 图片。`SlideMatchParams` 将查询图片限制为 3 MiB / 1200 万像素，匹配阈值集中管理。两组参数均不进入课程 pipeline 参数，不会让课程重跑。不要将文本分块误当成全文已读。
 
 T 为 ASR 转录（可能识别错误）；页 S 的文字和出现 S/N 的摘要是模型生成内容；公式/图示用图片核对。对外引用需要保留 video_id、version、证据 ID 和时间。外部 AI 的最终回答不经过网页的引用验证器；本版不承诺点击时间戳就能在外部客户端直接播放。
 
 ## 已验证范围
 
-标准 Python SDK 客户端：stdio 和真实 localhost Streamable HTTP 均完成握手、发现五个工具、搜索、正文与 JPEG 图片读取。额外使用原始 JSON-RPC 测试 2024-11-05、2025-03-26、2025-06-18 协议初始化；SDK 默认协商 2025-11-25。不是“所有 AI 产品都已实测”的声明。
+标准 Python SDK 客户端：stdio 和真实 localhost Streamable HTTP 均完成握手、发现八个工具、图片定位、单元简介、完整转写与 JPEG 图片读取。额外使用原始 JSON-RPC 测试 2024-11-05、2025-03-26、2025-06-18 协议初始化；SDK 默认协商 2025-11-25。不是“所有 AI 产品都已实测”的声明。
 
-具体结果见 [验收记录](proposals/0027-experiments/README.md)。未开放 PDF 工具、笔记编辑、新视频导入、付费处理或远程多用户访问。
+基础协议见 [0027 验收](proposals/0027-experiments/README.md)，图片定位和单元读取见 [0028 验收](proposals/0028-experiments/README.md)。未开放 PDF 工具、笔记编辑、新视频导入、付费处理或远程多用户访问。已经运行的 MCP 进程需重新加载后才能发现新增工具。
