@@ -33,6 +33,10 @@ def library(course, tmp_settings, set_settings):
     set_settings(dataclasses.replace(config.settings, mcp_token="synthetic-test-token"))
     from test_slide_locator import slide
     Image.fromarray(slide()).save(artifacts.video_dir(VID) / 'keyframes/S001.jpg')
+    artifacts.write_artifact(VID, 'transcript.json', {'language': 'en', 'segments': [
+        {'start': 10.125, 'end': 14.5, 'text': 'Full original transcript without generated evidence.'}]}, {})
+    artifacts.write_artifact(VID, 'keyframes.json', [{'id': 'S001', 'image': 'keyframes/S001.jpg',
+                                                   'appearances': [[10, 20]]}], {})
     return config.settings.data_dir
 
 
@@ -53,10 +57,17 @@ async def exercise(session):
     assert initialized.serverInfo.name == "LectureTrace"
     tools = (await session.list_tools()).tools
     assert {t.name for t in tools} == {"list_videos", "get_video_context", "search_video", "read_evidence", "view_slide",
-                                      "get_video_units", "read_video_unit", "locate_slide"}
+                                      "get_video_units", "read_video_unit", "locate_slide",
+                                      "read_video_transcript", "view_keyframe"}
     assert all(t.annotations.readOnlyHint and not t.annotations.destructiveHint for t in tools)
     assert all(t.inputSchema["type"] == "object" for t in tools)
     assert data(await session.call_tool("list_videos"))["videos"][0]["id"] == VID
+    full = data(await session.call_tool('read_video_transcript', {'video_id': VID}))
+    assert full['complete'] and full['next_text_offset'] is None
+    assert '[10.125-14.500] Full original transcript' in full['text']
+    frame = await session.call_tool('view_keyframe', {'video_id': VID, 'timestamp': 10.125})
+    assert data(frame)['matches'][0]['page_id'] == 'S001'
+    Image.open(io.BytesIO(base64.b64decode(frame.content[1].data))).verify()
     ctx = data(await session.call_tool("get_video_context", {"video_id": VID}))
     assert ctx["timeline"][0]["id"] == "N001"
     args = {"video_id": VID, "version": ctx["version"]}
@@ -90,6 +101,10 @@ async def exercise(session):
         ('get_video_units', {**args, 'timestamp': -1}),
         ('read_video_unit', {**args, 'unit_id': 'S001'}),
         ('locate_slide', {'video_id': VID, 'image_base64': 'not base64'}),
+        ('read_video_transcript', {'video_id': VID, 'text_offset': -1}),
+        ('read_video_transcript', {'video_id': '../secrets'}),
+        ('view_keyframe', {'video_id': VID, 'timestamp': -1}),
+        ('view_keyframe', {'video_id': VID, 'timestamp': 10, 'version': full['version']}),
     ]:
         assert (await session.call_tool(name, arguments)).isError
 
@@ -199,7 +214,7 @@ def test_plain_jsonrpc_client_versions(library, version):
             client.headers["MCP-Protocol-Version"] = version
             notification = await client.post("http://127.0.0.1:8000/mcp", json={"jsonrpc": "2.0", "method": "notifications/initialized"})
             assert notification.status_code == 202
-            assert len((await request("tools/list", {}))["tools"]) == 8
+            assert len((await request("tools/list", {}))["tools"]) == 10
             result = await request("tools/call", {"name": "list_videos", "arguments": {}})
             assert not result.get("isError")
             assert json.loads(result["content"][0]["text"])["videos"][0]["id"] == VID

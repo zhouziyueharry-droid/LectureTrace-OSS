@@ -4,6 +4,8 @@
 
 2026-11-08：新增图片定位时间 → 单元简介 → 按需转写/截图的八工具流程；[0028 提案](docs/proposals/0028-slide-location.md)、[交接](docs/proposals/0028-handoff.md)、[验收](docs/proposals/0028-experiments/README.md)。SIFT/RANSAC 复用 OpenCV，无 embedding；单元沿用 section，一次出现与整页的所有出现不能混同。
 
+2026-11-08：新增 `read_video_transcript` 与 `view_keyframe`，现为十工具；[0029](docs/proposals/0029-full-transcript.md)、[交接](docs/proposals/0029-handoff.md)、[验收](docs/proposals/0029-experiments/README.md)。全文原文与时间取图直接读最终 ASR/关键帧产物，不依赖 evidence 或大纲；两工具的源版本独立，续页不可混用。
+
 - 产品与启动：[README](README.md)、[中文说明](docs/README.zh-CN.md)、[Setup](docs/setup.md)。
 - 当前架构：[ARCHITECTURE](ARCHITECTURE.md)。MCP 工具契约在 [docs/mcp.md](docs/mcp.md)。
 - `backend/app/mcp_server.py` 提供通用 MCP；`qa/evidence_reader.py` 与网页共享读取逻辑。不要从 stdio 入口导入 `app.main` 或启动 runner。

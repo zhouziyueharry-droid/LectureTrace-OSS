@@ -179,6 +179,7 @@ class McpParams:
     max_queries: int = 8
     max_query_chars: int = 1000
     text_chunk_chars: int = 24000
+    transcript_chunk_chars: int = 160000
     summary_chars: int = 600
     max_request_bytes: int = 4 * 1024 * 1024 + 65536  # JSON base64 for a bounded 3 MiB image.
 
