@@ -309,6 +309,11 @@ a.lt-card:hover { border-color: var(--accent); text-decoration: none; }
 .ag-msg-head strong { font-size: 13px; }
 .msg-assistant .msg-bubble.ag-body { background: transparent; padding: 0; border-radius: 0; }
 .ag-actions { display: flex; gap: 2px; margin-left: -8px; }
+.ag-learning-options { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 2px 0 4px; }
+.ag-learning-options .btn { min-height: 28px; }
+.ag-learning-scope { display: inline-block; margin-right: 4px; padding: 1px 4px; border-radius: 4px; font-size: 10px; line-height: 1.4; vertical-align: 1px; }
+.ag-learning-scope.is-course { background: var(--info-soft); color: var(--text-2); }
+.ag-learning-scope.is-supplement { background: var(--accent-soft); color: var(--accent); }
 .ag-ghost { height: 26px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text-2); font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; }
 .ag-ghost:hover { background: var(--surface-2); color: var(--text); }
 .ag-steps { list-style: none; margin: 0; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; border-radius: 10px; background: var(--surface-2); font-size: 13px; }

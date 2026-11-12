@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { commitOutline, createChatConversation, deleteChatConversation, errorText, formatDateTime, getCodexSettings, renameChatConversation, selectChatConversation, undoOutline, type ChatConversations, type ChatExpanded } from '../api.ts'
+import { commitOutline, createChatConversation, deleteChatConversation, errorText, formatDateTime, getCodexSettings, getStepwiseQaSettings, renameChatConversation, selectChatConversation, undoOutline, type ChatConversations, type ChatExpanded, type StepwiseQaSettings } from '../api.ts'
 import { useChatObservation } from '../chat/useChatObservation.ts'
 import type { LocalMessage } from '../chat/observation.ts'
 import CitedMarkdown from './CitedMarkdown.tsx'
@@ -80,8 +80,9 @@ export default function ChatPanel({ videoId, enabled, disabledHint, onSeek, refe
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameText, setRenameText] = useState('')
-  const [provider, setProvider] = useState<'api' | 'codex'>('api')
+  const [provider, setProvider] = useState<'api' | 'codex' | 'stepwise_qa'>('api')
   const [providerReady, setProviderReady] = useState(false)
+  const [stepwiseModel, setStepwiseModel] = useState<StepwiseQaSettings | null>(null)
   const [model, setModel] = useState<ChatModel | null>(null)
   const [models, setModels] = useState<CodexModel[]>([])
   const [modelBusy, setModelBusy] = useState(false)
@@ -127,6 +128,18 @@ export default function ChatPanel({ videoId, enabled, disabledHint, onSeek, refe
     getCodexSettings().then((s) => { if (active) { setProvider(s.provider); setProviderReady(true) } }, (e) => { if (active) { setActionError(errorText(e)); setProviderReady(true) } })
     return () => { active = false }
   }, [])
+
+  useEffect(() => {
+    let active = true
+    if (provider !== 'stepwise_qa') {
+      setStepwiseModel(null)
+      return () => { active = false }
+    }
+    getStepwiseQaSettings().then((settings) => { if (active) setStepwiseModel(settings) }, () => {
+      if (active) setStepwiseModel(null)
+    })
+    return () => { active = false }
+  }, [provider])
 
   useEffect(() => {
     if (reference) inputRef.current?.focus()
@@ -316,6 +329,7 @@ ${agentRequest.question}` : agentRequest.question))
     const failed = m.status === 'failed'
     const note = expandedText(m.expanded)
     const q = failed ? questionOf(i) : null
+    const learningQuestion = m.options?.learning_parent_question || m.question || questionOf(i) || ''
     return (
       <div className="ag-msg">
         <div className="ag-msg-head">
@@ -350,6 +364,23 @@ ${agentRequest.question}` : agentRequest.question))
           )}
           {m.usage && <Usage usage={m.usage} />}
         </div>
+        {provider === 'stepwise_qa' && !failed && !m.stale && (m.learning_options?.length ?? 0) > 0 && (
+          <div className="ag-learning-options" aria-label="继续拓展">
+            <span className="muted small">想继续了解？</span>
+            {m.learning_options!.map((option) => (
+              <button key={option.id} className="btn btn-small" disabled={busy || editBusy || !enabled}
+                onClick={() => void ask(option.label, undefined, {
+                  node_id: m.options?.node_id,
+                  learning_action: option.id, learning_prompt: option.prompt, learning_scope: option.scope,
+                  learning_parent_question: option.parent_question || learningQuestion,
+                })}>
+                <span className={`ag-learning-scope is-${option.scope}`}>{option.scope === 'course' ? '课程' : '课外补充'}</span>
+                {' '}
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
         {!failed && m.content && (
           <div className="ag-actions">
             <button className="ag-ghost" onClick={() => void copy(m)}>{copiedId === m.id ? '已复制' : '复制'}</button>
@@ -399,12 +430,16 @@ ${agentRequest.question}` : agentRequest.question))
   }
 
   return (
-    <section className="panel chat-panel" aria-label="Agent">
+    <section className="panel chat-panel" aria-label="步进式问答 Agent">
       <div className="ag-head">
         <div className="ag-title">
           <AgentGlyph size={24} />
           <h2>Agent</h2>
-          <span className="ag-tag">{provider === 'codex' ? 'Codex' : 'API'}</span>
+          <span className="ag-tag">{provider === 'codex' ? 'Codex' : provider === 'stepwise_qa' ? '步进式问答 Agent' : 'API'}</span>
+          {provider === 'stepwise_qa' && stepwiseModel && <span className="ag-tag" title={`API 地址：${stepwiseModel.base_url}`}>
+            {stepwiseModel.provider === 'custom' ? '自定义 API' : `${stepwiseModel.provider === 'deepseek' ? 'DeepSeek' : 'OpenAI'} API`}
+            {' · '}{stepwiseModel.model}{' · '}{stepwiseModel.base_url.replace(/^https?:\/\//, '')}
+          </span>}
           <span className="spacer" />
           {undoRevision && <button className="btn btn-small btn-text" disabled={busy || editBusy || undoRevision !== outlineRevision} onClick={() => void applyEdit(true)}>撤销大纲修改</button>}
           {headExtra}
@@ -508,7 +543,7 @@ ${agentRequest.question}` : agentRequest.question))
                 <strong>Agent</strong>
                 <span className="muted small">{pending.interaction ? '等待回复' : '正在回答'}</span>
               </div>
-              {provider === 'codex' ? <div className="ag-live-progress" role="status">
+              {provider !== 'api' ? <div className="ag-live-progress" role="status">
                 <span className="ag-live-dot" aria-hidden />
                 {pending.text ? '正在生成回答' : pending.progress ?? '已发送，正在连接'}
               </div> : <ol className="ag-steps" aria-label="回答进度">
@@ -620,7 +655,7 @@ ${agentRequest.question}` : agentRequest.question))
           </div>
         </div>
         {modelError && provider === 'codex' && <p className="error-text small" role="alert">{modelError} <button className="ag-ghost" onClick={() => void loadModels()}>重新加载模型</button></p>}
-        <p className="muted small chat-hint">{provider === 'codex' ? '消耗 ChatGPT 套餐额度' : '按当前接口计费'}</p>
+        <p className="muted small chat-hint">{provider === 'codex' ? '消耗 ChatGPT 套餐额度' : provider === 'stepwise_qa' ? '步进式问答 Agent 使用独立模型设置' : '按当前接口计费'}</p>
       </div>
 
       <ConfirmDialog

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import LlmCard from '../components/LlmCard.tsx'
 import CodexCard from '../components/CodexCard.tsx'
+import type { CodexSettings } from '../api.ts'
 import {
   errorText,
   getSettings,
@@ -28,6 +29,7 @@ function keyStatus(k: KeyInfo): string {
 
 export default function SettingsPage() {
   const [section, setSection] = useState<'outline' | 'translation' | 'qa' | 'advanced'>('outline')
+  const [qaProvider, setQaProvider] = useState<CodexSettings['provider'] | null>(null)
   const [keys, setKeys] = useState<ApiKeys | null>(null)
   const [llm, setLlm] = useState<LlmSettings | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -88,7 +90,7 @@ export default function SettingsPage() {
       </nav>
       {loadError && <p className="error-text">加载设置失败：{loadError}</p>}
       {!keys && !loadError && <p className="muted">加载中…</p>}
-      <div hidden={section !== 'qa'}><CodexCard /></div>
+      <div hidden={section !== 'qa'}><CodexCard onProviderChange={setQaProvider} /></div>
       {keys && (
         <>
           <div hidden={section !== 'translation'}>
@@ -147,9 +149,11 @@ export default function SettingsPage() {
             help={<>供 OpenAI 兼容模型及 LLM 字幕翻译共用。DeepSeek Flash 使用独立 Key，不需要更改这里的地址。</>}
           />
           </div>
-          {llm && <LlmCard section={section} llm={llm} hasKey={keys.openai.has_key}
-            hasDeepseekKey={keys.deepseek?.has_key} onSaved={setLlm}
-            onOpenConnection={() => setSection('advanced')} />}
+          {llm && <div hidden={section === 'qa' && qaProvider !== 'api'}>
+            <LlmCard section={section} llm={llm} hasKey={keys.openai.has_key}
+              hasDeepseekKey={keys.deepseek?.has_key} onSaved={setLlm}
+              onOpenConnection={() => setSection('advanced')} />
+          </div>}
           <div hidden={section !== 'outline'}>
           <ServiceCard service="deepseek" title="DeepSeek API Key"
             info={keys.deepseek ?? { has_key: false, key_hint: null, source: null }} onSaved={setKeys}

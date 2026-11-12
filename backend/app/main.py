@@ -18,6 +18,7 @@ from .api import pdfs
 from .api import chat, codex, courses, notes, outline_edits, processing, settings, videos
 from .config import ROOT_DIR, settings as app_settings
 from .pipeline import runner
+from .qa.stepwise_qa import api as stepwise_qa_api
 
 HOST, PORT = "127.0.0.1", 8000
 FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"
@@ -45,6 +46,7 @@ app.include_router(courses.router)
 app.include_router(processing.router)
 app.include_router(chat.router)
 app.include_router(settings.router)
+app.include_router(stepwise_qa_api.router)
 app.include_router(codex.router)
 app.include_router(outline_edits.router)
 app.include_router(notes.router)
