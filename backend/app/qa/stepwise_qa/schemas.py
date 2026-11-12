@@ -15,6 +15,12 @@ class TutorReview(BaseModel):
     issues: list[str] = Field(default_factory=list, description="必须修正的具体问题；通过时为空")
 
 
+class TutorTaskRoute(BaseModel):
+    task_type: Literal["concept", "confusion", "formula", "example", "compare", "table", "summary", "open_task"] = Field(
+        description="根据用户本轮实际目标分类；明确要求表格时选 table，要求推导/例题/总结时选择对应类型"
+    )
+
+
 class LearningSuggestion(BaseModel):
     id: Literal["clarify", "formula", "example", "slides", "course_context", "prerequisite", "analogy",
                 "counterexample", "comparison", "application", "practice", "custom"]

@@ -33,7 +33,7 @@ class AskBody(BaseModel):
     note_target: NoteTarget | None = None
     pdf_target: PdfTarget | None = None
     learning_action: Literal['clarify', 'formula', 'example', 'slides', 'course_context', 'prerequisite', 'analogy',
-                             'counterexample', 'comparison', 'application', 'practice', 'custom'] | None = None
+                             'counterexample', 'comparison', 'application', 'practice', 'custom', 'plain_language'] | None = None
     learning_prompt: str | None = Field(default=None, max_length=180)
     learning_scope: Literal['course', 'supplement'] | None = None
     learning_parent_question: str | None = Field(default=None, max_length=4000)

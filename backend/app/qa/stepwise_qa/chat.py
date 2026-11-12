@@ -11,7 +11,7 @@ from .graph import TUTOR_GRAPH, is_course_grounded_open_task
 
 log = logging.getLogger(__name__)
 LEARNING_ACTIONS = {"clarify", "formula", "example", "slides", "course_context", "prerequisite", "analogy",
-                    "counterexample", "comparison", "application", "practice", "custom"}
+                    "counterexample", "comparison", "application", "practice", "custom", "plain_language"}
 
 PROGRESS = {
     "analyze": "判断问题类型并安排讲解方式",
@@ -148,6 +148,12 @@ def _ask_locked(video_id: str, question: str, *, node_id: str | None, learning_a
     root_question = (learning_parent_question or question).strip()
     allowed = set(ctx.prefix_ids) | set(exp.ids) | history_ids
     options = _validated_learning_options(current.get("learning_options") or [], root_question, allowed)
+    if learning_action != "plain_language" and not any(option["id"] == "plain_language" for option in options):
+        options.append({
+            "id": "plain_language", "label": "太复杂？通俗点",
+            "prompt": "请把原问题用两个简短小节重新解释：通俗解释（仅供理解参考）用贴切的生活比喻讲清逻辑并说明对应关系；课内简洁解释（依据课程内容）用准确术语概括并保留出处。每节最多 2 句话。",
+            "scope": "course", "evidence_ids": sorted(allowed)[:3], "parent_question": root_question,
+        })
     if allowed and not any(option["id"] == "course_context" for option in options):
         options.append({
             "id": "course_context",
