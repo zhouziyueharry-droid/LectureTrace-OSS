@@ -1,3 +1,4 @@
+import { systemText, tr, useLocale } from '../i18n.ts'
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function Modal({ open, title, onClose, children, footer, width = 480 }: Props) {
+  useLocale()
   const titleId = useId()
   const boxRef = useRef<HTMLDivElement>(null)
 
@@ -41,7 +43,7 @@ export default function Modal({ open, title, onClose, children, footer, width = 
       >
         <div className="modal-head">
           <h2 id={titleId}>{title}</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="关闭">
+          <button className="icon-btn" onClick={onClose} aria-label={tr("关闭")}>
             ×
           </button>
         </div>
@@ -68,13 +70,14 @@ export function ConfirmDialog({
   open,
   title,
   message,
-  confirmText = '确定',
+  confirmText = tr("确定"),
   danger,
   busy,
   error,
   onConfirm,
   onCancel,
 }: ConfirmProps) {
+  useLocale()
   return (
     <Modal
       open={open}
@@ -83,17 +86,15 @@ export function ConfirmDialog({
       width={420}
       footer={
         <>
-          <button className="btn" onClick={onCancel} disabled={busy}>
-            取消
-          </button>
+          <button className="btn" onClick={onCancel} disabled={busy}>{tr("取消")}</button>
           <button className={danger ? 'btn btn-danger' : 'btn btn-primary'} onClick={onConfirm} disabled={busy}>
-            {busy ? '处理中…' : confirmText}
+            {busy ? tr("处理中…") : confirmText}
           </button>
         </>
       }
     >
       <div>{message}</div>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text">{systemText(error)}</p>}
     </Modal>
   )
 }

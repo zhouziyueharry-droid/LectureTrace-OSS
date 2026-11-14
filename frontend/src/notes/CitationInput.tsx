@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n.ts'
 import { useContext, useEffect, useLayoutEffect, useRef, type KeyboardEvent } from 'react'
 import type { Citation } from '../api.ts'
 import { PdfNavigation } from '../components/CitedMarkdown.tsx'
@@ -68,6 +69,7 @@ interface Props {
 }
 
 export default function CitationInput({ id, value, className, placeholder, citations, onChange, onSelect, onKeyDown }: Props) {
+  const locale = useLocale()
   const root = useRef<HTMLDivElement>(null)
   const composing = useRef(false)
   const openPdf = useContext(PdfNavigation)
@@ -104,8 +106,8 @@ export default function CitationInput({ id, value, className, placeholder, citat
       chip.dataset.source = match[0]
       chip.className = `cite-badge cite-pdf${cite?.url && openPdf ? '' : ' is-off'}`
       const page = cite?.page ?? /^PDF:[^:]+:[^:]+:(\d+)$/.exec(match[1])?.[1]
-      chip.textContent = page ? `PDF · ${page} 页` : 'PDF'
-      chip.title = cite?.url && openPdf ? `${cite.title} · 第 ${cite.page} 页` : 'PDF 引用未通过校验或原件已不可用'
+      chip.textContent = page ? tr("PDF · {0} 页", page) : 'PDF'
+      chip.title = cite?.url && openPdf ? tr("{0} · 第 {1} 页", cite.title, cite.page) : tr("PDF 引用未通过校验或原件已不可用")
       chip.setAttribute('role', 'button')
       chip.setAttribute('aria-label', chip.title)
       chip.setAttribute('aria-disabled', String(!cite?.url || !openPdf))
@@ -121,7 +123,7 @@ export default function CitationInput({ id, value, className, placeholder, citat
     }
     el.replaceChildren(...nodes)
     if (selection && focused) selectInput(el, selection.from, selection.to)
-  }, [value, citations, openPdf])
+  }, [value, citations, openPdf, locale])
 
   const change = (text: string, selection: InputSelection) => {
     if (text === value) { selectInput(root.current!, selection.from, selection.to); return }
@@ -167,7 +169,7 @@ export default function CitationInput({ id, value, className, placeholder, citat
   })
 
   return <div ref={root} data-block={id} className={`${className} blk-capsule-input`} contentEditable suppressContentEditableWarning
-    role="textbox" aria-multiline="true" aria-label="编辑段落（Markdown）" data-placeholder={placeholder} spellCheck={false}
+    role="textbox" aria-multiline="true" aria-label={tr("编辑段落（Markdown）")} data-placeholder={placeholder} spellCheck={false}
     onCompositionStart={() => { composing.current = true }}
     onCompositionEnd={() => {
       composing.current = false

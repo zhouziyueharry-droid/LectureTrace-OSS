@@ -1,3 +1,4 @@
+import { getLocale, tr } from '../i18n.ts'
 import { useEffect, useState } from 'react'
 import { errorText, getCodexStatus, type CodexStatus } from '../api.ts'
 
@@ -16,15 +17,15 @@ export function quotaText(limits: Record<string, unknown> | null, detailed = tru
       const used = row.usedPercent
       const mins = row.windowDurationMins
       const reset = row.resetsAt
-      const label = mins === 10080 ? '每周' : typeof mins === 'number' && Number.isFinite(mins) && mins > 0
-        ? mins % 60 === 0 ? `${mins / 60} 小时` : `${mins} 分钟` : '窗口'
+      const label = mins === 10080 ? tr("每周") : typeof mins === 'number' && Number.isFinite(mins) && mins > 0
+        ? mins % 60 === 0 ? tr("{0} 小时", mins / 60) : tr("{0} 分钟", mins) : tr("窗口")
       const remaining = typeof used === 'number' && Number.isFinite(used)
-        ? `${Math.max(0, Math.min(100, 100 - used))}%` : '未知'
+        ? `${Math.max(0, Math.min(100, 100 - used))}%` : tr("未知")
       const date = typeof reset === 'number' && Number.isFinite(reset) ? new Date(reset * 1000) : null
-      windows.push(`${buckets.length > 1 ? `${bucket.limitName ?? id} · ` : ''}${label}剩余 ${remaining}${detailed && date && Number.isFinite(date.getTime()) ? `，${date.toLocaleString()} 重置` : ''}`)
+      windows.push(tr("{0}{1}剩余 {2}{3}", buckets.length > 1 ? `${bucket.limitName ?? id} · ` : '', label, remaining, detailed && date && Number.isFinite(date.getTime()) ? tr("，{0} 重置", date.toLocaleString(getLocale())) : ''))
     }
   }
-  return `套餐余量：${windows.length ? windows.join('；') : '未知'}`
+  return tr("套餐余量：{0}", windows.length ? windows.join(tr("；")) : tr("未知"))
 }
 
 export interface QuotaWindow {
@@ -37,9 +38,9 @@ export interface QuotaWindow {
 }
 
 const windowLabel = (mins: unknown) => {
-  if (mins === 10080) return '每周限额'
-  if (typeof mins !== 'number' || !Number.isFinite(mins) || mins <= 0) return '用量限额'
-  return mins % 60 === 0 ? `${mins / 60} 小时限额` : `${mins} 分钟限额`
+  if (mins === 10080) return tr("每周限额")
+  if (typeof mins !== 'number' || !Number.isFinite(mins) || mins <= 0) return tr("用量限额")
+  return mins % 60 === 0 ? tr("{0} 小时限额", mins / 60) : tr("{0} 分钟限额", mins)
 }
 
 /** 把运行时上报的额度窗口整理成列表；有多个限额桶时在名称前加桶名 */

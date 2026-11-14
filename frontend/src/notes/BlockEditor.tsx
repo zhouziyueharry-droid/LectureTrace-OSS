@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n.ts'
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { Citation } from '../api.ts'
 import CitedMarkdown from '../components/CitedMarkdown.tsx'
@@ -36,6 +37,7 @@ interface Props {
 interface Block { id: number; text: string }
 
 function GutterIcon({ kind }: { kind: 'plus' | 'grip' }) {
+  useLocale()
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden>
       {kind === 'plus' ? <path d="M8 3.5v9M3.5 8h9" /> : (
@@ -59,28 +61,29 @@ const texts = (blocks: Block[]) => blocks.map((b) => b.text)
 
 interface SlashItem { key: string; label: string; hint: string; words: string; agent?: boolean }
 const SLASH: SlashItem[] = [
-  { key: 'h1', label: '标题 1', hint: '#', words: 'h1 heading 标题' },
-  { key: 'h2', label: '标题 2', hint: '##', words: 'h2 heading 标题' },
-  { key: 'h3', label: '标题 3', hint: '###', words: 'h3 heading 标题' },
-  { key: 'ul', label: '项目符号', hint: '-', words: 'ul list bullet 列表 符号' },
-  { key: 'ol', label: '编号列表', hint: '1.', words: 'ol number 编号 列表' },
-  { key: 'todo', label: '待办', hint: '- [ ]', words: 'todo task check 待办 任务' },
-  { key: 'quote', label: '引用块', hint: '>', words: 'quote 引用' },
-  { key: 'code', label: '代码块', hint: '```', words: 'code 代码' },
-  { key: 'math', label: '公式块', hint: '$$', words: 'math latex formula 公式' },
-  { key: 'table', label: '表格', hint: '|', words: 'table 表格' },
-  { key: 'rule', label: '分割线', hint: '---', words: 'hr rule divider 分割线' },
-  { key: 'clock', label: '当前时间戳', hint: 'Ctrl+;', words: 'time clock timestamp 时间 时间戳' },
-  { key: 'agent', label: '让 Agent 写这一段', hint: '', words: 'agent ai 写 起草', agent: true },
+  { key: 'h1', get label() { return tr("标题 1") }, hint: '#', words: 'h1 heading 标题' },
+  { key: 'h2', get label() { return tr("标题 2") }, hint: '##', words: 'h2 heading 标题' },
+  { key: 'h3', get label() { return tr("标题 3") }, hint: '###', words: 'h3 heading 标题' },
+  { key: 'ul', get label() { return tr("项目符号") }, hint: '-', words: 'ul list bullet 列表 符号' },
+  { key: 'ol', get label() { return tr("编号列表") }, hint: '1.', words: 'ol number 编号 列表' },
+  { key: 'todo', get label() { return tr("待办") }, hint: '- [ ]', words: 'todo task check 待办 任务' },
+  { key: 'quote', get label() { return tr("引用块") }, hint: '>', words: 'quote 引用' },
+  { key: 'code', get label() { return tr("代码块") }, hint: '```', words: 'code 代码' },
+  { key: 'math', get label() { return tr("公式块") }, hint: '$$', words: 'math latex formula 公式' },
+  { key: 'table', get label() { return tr("表格") }, hint: '|', words: 'table 表格' },
+  { key: 'rule', get label() { return tr("分割线") }, hint: '---', words: 'hr rule divider 分割线' },
+  { key: 'clock', get label() { return tr("当前时间戳") }, hint: 'Ctrl+;', words: 'time clock timestamp 时间 时间戳' },
+  { key: 'agent', get label() { return tr("让 Agent 写这一段") }, hint: '', words: 'agent ai 写 起草', agent: true },
 ]
 
 const TEMPLATES: Record<string, { text: string; caret?: Caret }> = {
   h1: { text: '# ' }, h2: { text: '## ' }, h3: { text: '### ' }, ul: { text: '- ' }, ol: { text: '1. ' }, todo: { text: '- [ ] ' },
   quote: { text: '> ' }, code: { text: '```\n\n```', caret: { from: 4, to: 4 } }, math: { text: '$$\n\n$$', caret: { from: 3, to: 3 } },
-  table: { text: '| 列 1 | 列 2 |\n| --- | --- |\n|  |  |', caret: { from: 33, to: 33 } }, rule: { text: '---' },
+  table: { get text() { return tr("| 列 1 | 列 2 |\n| --- | --- |\n|  |  |") }, get caret() { const at = this.text.lastIndexOf('\n') + 3; return { from: at, to: at } } }, rule: { text: '---' },
 }
 
 export default function BlockEditor({ text, onChange, citations, stale, onSeek, getTime, onAgent, onSave, suggestions = [], renderSuggestion, readOnly }: Props) {
+  useLocale()
   const [blocks, setBlocks] = useState<Block[]>(() => fromText(text))
   const [active, setActive] = useState<number | null>(null)
   const [menuFor, setMenuFor] = useState<number | null>(null)
@@ -379,6 +382,7 @@ interface RowProps {
 }
 
 function BlockRow(props: RowProps) {
+  const locale = useLocale()
   const { block, active, menuOpen, prompt, readOnly, citations, stale, onSeek, agentEnabled, first } = props
   const [selection, setSelection] = useState<[number, number]>([0, 0])
   const [slashIndex, setSlashIndex] = useState(0)
@@ -390,9 +394,9 @@ function BlockRow(props: RowProps) {
   const slash = useMemo(() => {
     if (!slashMatch) return null
     const q = slashMatch[1].toLowerCase()
-    const items = SLASH.filter((s) => (agentEnabled || !s.agent) && (!q || s.label.includes(q) || s.words.includes(q)))
+    const items = SLASH.filter((s) => (agentEnabled || !s.agent) && (!q || s.label.toLowerCase().includes(q) || s.words.includes(q)))
     return items.length ? items : null
-  }, [slashMatch?.[1], agentEnabled])
+  }, [slashMatch?.[1], agentEnabled, locale])
   useEffect(() => { setSlashIndex(0) }, [slashMatch?.[1]])
 
   const hasSelection = active && selection[1] > selection[0]
@@ -412,7 +416,7 @@ function BlockRow(props: RowProps) {
   const keep = (event: { preventDefault: () => void }) => event.preventDefault()
 
   const rendered = (
-    <div className="blk-body" role="group" tabIndex={readOnly ? -1 : 0} aria-label="段落，点击或按 Enter 编辑"
+    <div className="blk-body" role="group" tabIndex={readOnly ? -1 : 0} aria-label={tr("段落，点击或按 Enter 编辑")}
       onClick={(event) => {
         const target = event.target as HTMLElement
         const task = target.closest('li.task-list-item')
@@ -427,7 +431,7 @@ function BlockRow(props: RowProps) {
       }}
       onKeyDown={(event) => { if (event.key === 'Enter' && event.target === event.currentTarget) { event.preventDefault(); props.onActivate('end') } }}>
       {block.text.trim() ? <CitedMarkdown content={block.text} citations={citations} onSeek={onSeek} inactive={stale ? 'stale' : undefined} />
-        : <p className="blk-empty">{first ? '输入内容，按 / 插入块，或让 Agent 起草' : '空段落'}</p>}
+        : <p className="blk-empty">{first ? tr("输入内容，按 / 插入块，或让 Agent 起草") : tr("空段落")}</p>}
     </div>
   )
 
@@ -436,33 +440,33 @@ function BlockRow(props: RowProps) {
       onBlur={(event) => { if (active && !event.currentTarget.contains(event.relatedTarget as Node | null)) props.onDeactivate() }}>
       {!readOnly && (
         <div className="blk-gutter">
-          <button type="button" className="blk-grip" aria-label="在下方添加段落" title="在下方添加段落" onMouseDown={keep} onClick={props.onPlus}><GutterIcon kind="plus" /></button>
-          <button type="button" className="blk-grip" aria-label="段落菜单" title="拖动不可用；点开可上移、下移、复制、删除，或叫 Agent" aria-expanded={menuOpen} onClick={props.onMenu}><GutterIcon kind="grip" /></button>
+          <button type="button" className="blk-grip" aria-label={tr("在下方添加段落")} title={tr("在下方添加段落")} onMouseDown={keep} onClick={props.onPlus}><GutterIcon kind="plus" /></button>
+          <button type="button" className="blk-grip" aria-label={tr("段落菜单")} title={tr("拖动不可用；点开可上移、下移、复制、删除，或叫 Agent")} aria-expanded={menuOpen} onClick={props.onMenu}><GutterIcon kind="grip" /></button>
         </div>
       )}
       {active ? (
         <CitationInput id={block.id} className={`blk-input is-${blockKind(block.text)}${/^#{1,3}\s/.test(block.text) ? ` is-h${/^(#{1,3})/.exec(block.text)![1].length}` : ''}`} value={block.text} citations={citations}
-          placeholder={first ? '输入内容，或按 / 插入块、让 Agent 起草' : '输入内容，按 / 插入块'}
+          placeholder={first ? tr("输入内容，或按 / 插入块、让 Agent 起草") : tr("输入内容，按 / 插入块")}
           onChange={(value) => props.onText(value)}
           onSelect={({ from, to }) => setSelection([from, to])}
           onKeyDown={(event) => props.onKeyDown(event, block, slash, slashIndex, setSlashIndex)} />
       ) : rendered}
       {hasSelection && selected.trim() && (
-        <div className="blk-bar" role="toolbar" aria-label="选中文字工具" onMouseDown={keep}>
+        <div className="blk-bar" role="toolbar" aria-label={tr("选中文字工具")} onMouseDown={keep}>
           {agentEnabled && <>
-            <button type="button" className="is-agent" onClick={() => props.onOpenPrompt(selected, 'selection')}>问 Agent</button>
-            <button type="button" onClick={() => props.onAsk({ where: 'selection', quote: selected, instruction: '改写得更清晰简洁，保持原意和原有引用', send: true })}>改写</button>
-            <button type="button" onClick={() => props.onAsk({ where: 'selection', quote: selected, instruction: '把这段总结成几条要点，保留关键公式', send: true })}>总结</button>
+            <button type="button" className="is-agent" onClick={() => props.onOpenPrompt(selected, 'selection')}>{tr("问 Agent")}</button>
+            <button type="button" onClick={() => props.onAsk({ where: 'selection', quote: selected, instruction: tr("改写得更清晰简洁，保持原意和原有引用"), send: true })}>{tr("改写")}</button>
+            <button type="button" onClick={() => props.onAsk({ where: 'selection', quote: selected, instruction: tr("把这段总结成几条要点，保留关键公式"), send: true })}>{tr("总结")}</button>
             <span className="blk-bar-sep" aria-hidden />
           </>}
-          <button type="button" aria-label="加粗" onClick={() => wrap('**', '**')}><strong>B</strong></button>
-          <button type="button" aria-label="斜体" onClick={() => wrap('*', '*')}><em>I</em></button>
-          <button type="button" aria-label="行内公式" onClick={() => wrap('$', '$')}>∑</button>
-          <button type="button" aria-label="链接" onClick={() => wrap('', '', true)}>链接</button>
+          <button type="button" aria-label={tr("加粗")} onClick={() => wrap('**', '**')}><strong>B</strong></button>
+          <button type="button" aria-label={tr("斜体")} onClick={() => wrap('*', '*')}><em>I</em></button>
+          <button type="button" aria-label={tr("行内公式")} onClick={() => wrap('$', '$')}>∑</button>
+          <button type="button" aria-label={tr("链接")} onClick={() => wrap('', '', true)}>{tr("链接")}</button>
         </div>
       )}
       {slash && (
-        <div className="blk-slash" role="listbox" aria-label="插入块" onMouseDown={keep}>
+        <div className="blk-slash" role="listbox" aria-label={tr("插入块")} onMouseDown={keep}>
           {slash.map((item, i) => (
             <button key={item.key} type="button" role="option" aria-selected={i === slashIndex} className={`${i === slashIndex ? 'is-on' : ''}${item.agent ? ' is-agent' : ''}`}
               onMouseEnter={() => setSlashIndex(i)} onClick={() => props.onApplySlash(item)}>
@@ -472,30 +476,30 @@ function BlockRow(props: RowProps) {
         </div>
       )}
       {menuOpen && (
-        <div className="blk-menu" role="menu" aria-label="段落菜单">
-          <button type="button" role="menuitem" onClick={() => props.onMove(-1)} disabled={props.index === 0}>上移</button>
-          <button type="button" role="menuitem" onClick={() => props.onMove(1)} disabled={props.index === props.count - 1}>下移</button>
-          <button type="button" role="menuitem" onClick={props.onDuplicate}>复制段落</button>
-          <button type="button" role="menuitem" className="is-danger" onClick={props.onRemove}>删除段落</button>
+        <div className="blk-menu" role="menu" aria-label={tr("段落菜单")}>
+          <button type="button" role="menuitem" onClick={() => props.onMove(-1)} disabled={props.index === 0}>{tr("上移")}</button>
+          <button type="button" role="menuitem" onClick={() => props.onMove(1)} disabled={props.index === props.count - 1}>{tr("下移")}</button>
+          <button type="button" role="menuitem" onClick={props.onDuplicate}>{tr("复制段落")}</button>
+          <button type="button" role="menuitem" className="is-danger" onClick={props.onRemove}>{tr("删除段落")}</button>
           {agentEnabled && block.text.trim() && <>
             <span className="blk-menu-sep" aria-hidden />
-            <button type="button" role="menuitem" className="is-agent" onClick={() => props.onAsk({ where: 'block', quote: block.text, instruction: '改写这一段，更清晰简洁，保持原意和原有引用', send: true })}>Agent：改写这一段</button>
-            <button type="button" role="menuitem" className="is-agent" onClick={() => props.onAsk({ where: 'insert', quote: '', before: block.text, instruction: '在这一段后面续写一段，先核对课程原片段并附引用', send: true })}>Agent：在下面续写</button>
-            <button type="button" role="menuitem" className="is-agent" onClick={() => props.onAsk({ where: 'block', quote: block.text, instruction: '核对这一段与课程原片段是否一致，有出入就修正并附引用', send: true })}>Agent：核对这段的出处</button>
-            <button type="button" role="menuitem" onClick={() => props.onAsk({ where: 'block', quote: block.text, instruction: '', send: false })}>引用到 Agent 对话</button>
+            <button type="button" role="menuitem" className="is-agent" onClick={() => props.onAsk({ where: 'block', quote: block.text, instruction: tr("改写这一段，更清晰简洁，保持原意和原有引用"), send: true })}>{tr("Agent：改写这一段")}</button>
+            <button type="button" role="menuitem" className="is-agent" onClick={() => props.onAsk({ where: 'insert', quote: '', before: block.text, instruction: tr("在这一段后面续写一段，先核对课程原片段并附引用"), send: true })}>{tr("Agent：在下面续写")}</button>
+            <button type="button" role="menuitem" className="is-agent" onClick={() => props.onAsk({ where: 'block', quote: block.text, instruction: tr("核对这一段与课程原片段是否一致，有出入就修正并附引用"), send: true })}>{tr("Agent：核对这段的出处")}</button>
+            <button type="button" role="menuitem" onClick={() => props.onAsk({ where: 'block', quote: block.text, instruction: '', send: false })}>{tr("引用到 Agent 对话")}</button>
           </>}
         </div>
       )}
       {prompt && (
         <form className="blk-prompt" onMouseDown={(event) => { if (!(event.target instanceof HTMLInputElement)) keep(event) }}
           onSubmit={(event) => { event.preventDefault(); submitPrompt() }}>
-          <div className="blk-prompt-head"><strong>Agent</strong><span className="muted small">{prompt.where === 'insert' ? '在这里写一段，以修改建议出现' : '只改动选中的内容，以修改建议出现'}</span></div>
-          <input aria-label="告诉 Agent 要怎么做" autoFocus value={promptText} placeholder={prompt.where === 'insert' ? '例如：补充一个乘法节点的例子，并标出处' : '例如：补充一个例子，并标出处'}
+          <div className="blk-prompt-head"><strong>Agent</strong><span className="muted small">{prompt.where === 'insert' ? tr("在这里写一段，以修改建议出现") : tr("只改动选中的内容，以修改建议出现")}</span></div>
+          <input aria-label={tr("告诉 Agent 要怎么做")} autoFocus value={promptText} placeholder={prompt.where === 'insert' ? tr("例如：补充一个乘法节点的例子，并标出处") : tr("例如：补充一个例子，并标出处")}
             onChange={(event) => setPromptText(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); props.onClosePrompt() } }} />
           <div className="blk-prompt-actions">
-            <span className="muted small">Enter 发送 · Esc 取消</span>
-            <button type="button" className="btn btn-small" onClick={props.onClosePrompt}>取消</button>
-            <button type="submit" className="btn btn-small btn-primary" disabled={!promptText.trim()}>发送</button>
+            <span className="muted small">{tr("Enter 发送 · Esc 取消")}</span>
+            <button type="button" className="btn btn-small" onClick={props.onClosePrompt}>{tr("取消")}</button>
+            <button type="submit" className="btn btn-small btn-primary" disabled={!promptText.trim()}>{tr("发送")}</button>
           </div>
         </form>
       )}

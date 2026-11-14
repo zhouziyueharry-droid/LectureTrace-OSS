@@ -1,3 +1,4 @@
+import { systemText, tr, useLocale } from '../i18n.ts'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { formatTime, type Outline, type OutlineNode } from '../api.ts'
 import type { OutlineQuote } from '../outlineQuote.ts'
@@ -58,6 +59,7 @@ export default function OutlinePanel({
   embedded,
   headExtra,
 }: Props) {
+  useLocale()
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [selectionAction, setSelectionAction] = useState<SelectionAction | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -159,7 +161,7 @@ export default function OutlinePanel({
                   className="ol-toggle"
                   onClick={() => toggle(key)}
                   aria-expanded={!isCollapsed}
-                  aria-label={isCollapsed ? '展开' : '折叠'}
+                  aria-label={isCollapsed ? tr("展开") : tr("折叠")}
                 >
                   {isCollapsed ? '▸' : '▾'}
                 </button>
@@ -181,20 +183,16 @@ export default function OutlinePanel({
   const warnings = outline?.warnings ?? []
 
   return (
-    <section className={`panel outline-panel${embedded ? ' is-embedded' : ''}`} aria-label="大纲">
+    <section className={`panel outline-panel${embedded ? ' is-embedded' : ''}`} aria-label={tr("大纲")}>
       <div className="panel-head">
-        {embedded ? <span className="muted small">由课程生成，随播放自动定位</span> : <h2>大纲</h2>}
+        {embedded ? <span className="muted small">{tr("由课程生成，随播放自动定位")}</span> : <h2>{tr("大纲")}</h2>}
         {outline && (
           <div className="panel-actions">
             {headExtra}
             {(parents.length > 0 || (admin?.items.length ?? 0) > 0) && (
               <>
-                <button className="btn btn-small btn-text" onClick={() => setCollapsed(new Set())}>
-                  全部展开
-                </button>
-                <button className="btn btn-small btn-text" onClick={() => setCollapsed(new Set([...parents, ADMIN_PREFIX]))}>
-                  全部折叠
-                </button>
+                <button className="btn btn-small btn-text" onClick={() => setCollapsed(new Set())}>{tr("全部展开")}</button>
+                <button className="btn btn-small btn-text" onClick={() => setCollapsed(new Set([...parents, ADMIN_PREFIX]))}>{tr("全部折叠")}</button>
               </>
             )}
           </div>
@@ -202,30 +200,24 @@ export default function OutlinePanel({
       </div>
       {!follow && activeKey && (
         <button type="button" className="ol-follow" onClick={() => { setFollow(true); scrollToActive(false) }}>
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden><circle cx="8" cy="8" r="2.5" /><path d="M8 1.5v2.5M8 12v2.5M1.5 8H4M12 8h2.5" /></svg>
-          回到当前位置
-        </button>
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden><circle cx="8" cy="8" r="2.5" /><path d="M8 1.5v2.5M8 12v2.5M1.5 8H4M12 8h2.5" /></svg>{tr("回到当前位置")}</button>
       )}
       <div className="panel-body" ref={bodyRef} onPointerUp={queueSelection} onMouseUp={queueSelection} onKeyUp={queueSelection} onScroll={onBodyScroll}>
-        {error && <p className="error-text small">加载大纲失败：{error}</p>}
+        {error && <p className="error-text small">{tr("加载大纲失败：")}{systemText(error)}</p>}
         {outline && needsRegen && (
           <div className="alert alert-info small ol-regen">
-            <span>
-              大纲需重新生成：
-              {needsRegen === 'settings'
-                ? '生成大纲的设置（如输出语言、模型）已改变，下面仍是旧版本。'
-                : '前面的处理结果已变化，请用上方的“重新处理”从头更新，下面仍是旧版本。'}
+            <span>{tr("大纲需重新生成：")}{needsRegen === 'settings'
+                ? tr("生成大纲的设置（如输出语言、模型）已改变，下面仍是旧版本。")
+                : tr("前面的处理结果已变化，请用上方的“重新处理”从头更新，下面仍是旧版本。")}
             </span>
             {onRegen && (
-              <button className="btn btn-small" onClick={onRegen} disabled={regenBusy} title="开始前会先显示发送清单与费用预估">
-                重新生成
-              </button>
+              <button className="btn btn-small" onClick={onRegen} disabled={regenBusy} title={tr("开始前会先显示发送清单与费用预估")}>{tr("重新生成")}</button>
             )}
           </div>
         )}
         {outline ? (
           <>
-            {outline.chapters.length === 0 ? <p className="muted">大纲为空。</p> : renderNodes(outline.chapters, '', 0)}
+            {outline.chapters.length === 0 ? <p className="muted">{tr("大纲为空。")}</p> : renderNodes(outline.chapters, '', 0)}
             {admin && admin.items.length > 0 && (
               <div className="ol-admin" aria-label={admin.title}>
                 <div className="ol-head ol-admin-head">
@@ -233,12 +225,12 @@ export default function OutlinePanel({
                     className="ol-toggle"
                     onClick={() => toggle(ADMIN_PREFIX)}
                     aria-expanded={adminOpen}
-                    aria-label={adminOpen ? '折叠' : '展开'}
+                    aria-label={adminOpen ? tr("折叠") : tr("展开")}
                   >
                     {adminOpen ? '▾' : '▸'}
                   </button>
                   <span className="ol-admin-title">{admin.title}</span>
-                  <span className="muted small">{admin.items.length} 条</span>
+                  <span className="muted small">{admin.items.length} {tr("条")}</span>
                 </div>
                 {adminOpen && (
                   <ul className="ol-list ol-admin-list">
@@ -256,17 +248,17 @@ export default function OutlinePanel({
             )}
             {warnings.length > 0 && (
               <details className="ol-warnings small">
-                <summary>生成时有 {warnings.length} 条提示</summary>
+                <summary>{tr("生成时有")} {warnings.length} {tr("条提示")}</summary>
                 <ul>
                   {warnings.map((w, i) => (
-                    <li key={i}>{w}</li>
+                    <li key={i}>{systemText(w)}</li>
                   ))}
                 </ul>
               </details>
             )}
           </>
         ) : loading ? (
-          <p className="muted">加载中…</p>
+          <p className="muted">{tr("加载中…")}</p>
         ) : (
           <div className="placeholder">{placeholder}</div>
         )}
@@ -278,9 +270,7 @@ export default function OutlinePanel({
               onReference?.(selectionAction)
               setSelectionAction(null)
               window.getSelection()?.removeAllRanges()
-            }}>
-            添加到问答
-          </button>
+            }}>{tr("添加到问答")}</button>
         )}
       </div>
     </section>
@@ -289,6 +279,7 @@ export default function OutlinePanel({
 
 /** 时间徽标 + 标题，点击都跳转；没有有效时间（校验失败）时不可点 */
 function NodeHead({ node, onSeek }: { node: OutlineNode; onSeek: (t: number) => void }) {
+  useLocale()
   const ok = Number.isFinite(node.start)
   return (
     <>
@@ -296,7 +287,7 @@ function NodeHead({ node, onSeek }: { node: OutlineNode; onSeek: (t: number) => 
         className="ts-badge"
         onClick={() => ok && onSeek(node.start)}
         disabled={!ok}
-        title={ok ? `跳转到 ${formatTime(node.start)}` : '没有可跳转的时间'}
+        title={ok ? tr("跳转到 {0}", formatTime(node.start)) : tr("没有可跳转的时间")}
       >
         {formatTime(node.start)}
       </button>

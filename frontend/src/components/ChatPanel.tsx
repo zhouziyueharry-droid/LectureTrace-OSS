@@ -1,3 +1,4 @@
+import { systemText, getLocale, tr, useLocale } from '../i18n.ts'
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { commitOutline, createChatConversation, deleteChatConversation, errorText, formatDateTime, getCodexSettings, renameChatConversation, selectChatConversation, undoOutline, type ChatConversations, type ChatExpanded } from '../api.ts'
 import { useChatObservation } from '../chat/useChatObservation.ts'
@@ -51,14 +52,15 @@ function loadInputH(): number {
 
 function expandedText(e: ChatExpanded | null | undefined): string | null {
   if (!e) return null
-  if (!e.t && !e.images) return '短索引已足够，未展开原文'
+  if (!e.t && !e.images) return tr("短索引已足够，未展开原文")
   const parts = []
-  if (e.t) parts.push(`${e.t} 段讲解`)
-  if (e.images) parts.push(`${e.images} 张截图`)
-  return `已展开 ${parts.join('、')}`
+  if (e.t) parts.push(tr("{0} 段讲解", e.t))
+  if (e.images) parts.push(tr("{0} 张截图", e.images))
+  return tr("已展开 {0}", parts.join(tr("、")))
 }
 
 export default function ChatPanel({ videoId, enabled, disabledHint, onSeek, reference, onClearReference, onOutlineChanged, outlineRevision, noteAttach, pdfTarget, onDetachNote, resolveNoteTarget, agentRequest, onNotesChanged, headExtra }: Props) {
+  useLocale()
   const inputId = useId()
   const { observer, messages, pending, sessions, loading, loadError, context, contextCurrent, compacting, preview, stopping, error: observationError } = useChatObservation(videoId, onNotesChanged)
   const [input, setInput] = useState('')
@@ -191,7 +193,7 @@ export default function ChatPanel({ videoId, enabled, disabledHint, onSeek, refe
       if (observer.getSnapshot().sessions?.current_id !== conversationId) return
       const options = retryOptions ?? { node_id: reference?.node_id, allow_outline_edit: provider === 'codex' && allowEdit, note_target: target ?? undefined, pdf_target: pdfTarget }
       if ((options.note_target || options.pdf_target) && provider !== 'codex') {
-        setActionError('让 Agent 读写页面需要在设置中切换到 Codex Agent')
+        setActionError(tr("让 Agent 读写页面需要在设置中切换到 Codex Agent"))
         return
       }
       stickRef.current = true
@@ -215,10 +217,10 @@ ${agentRequest.question}` : agentRequest.question))
       window.setTimeout(() => inputRef.current?.focus(), 0)
       return
     }
-    if (provider !== 'codex') { setActionError('让 Agent 读写页面需要在设置中切换到 Codex Agent'); return }
+    if (provider !== 'codex') { setActionError(tr("让 Agent 读写页面需要在设置中切换到 Codex Agent")); return }
     void (async () => {
       const target = await resolveNoteTarget?.()
-      if (!target) { setActionError('页面还有没处理的冲突，请先处理后再叫 Agent'); return }
+      if (!target) { setActionError(tr("页面还有没处理的冲突，请先处理后再叫 Agent")); return }
       await ask(agentRequest.question, undefined, { allow_outline_edit: false, note_target: target })
     })()
   }, [agentRequest, providerReady, provider, loading, resolveNoteTarget, ask])
@@ -261,7 +263,7 @@ ${agentRequest.question}` : agentRequest.question))
     const conversationId = sessions?.current_id
     const title = renameText.trim()
     if (!title || title.length > 80) {
-      setSessionError('标题须为 1–80 个字符')
+      setSessionError(tr("标题须为 1–80 个字符"))
       return
     }
     setSessionBusy(true)
@@ -308,7 +310,7 @@ ${agentRequest.question}` : agentRequest.question))
       setCopiedId(m.id)
       window.setTimeout(() => setCopiedId((id) => (id === m.id ? null : id)), 1500)
     } catch {
-      setActionError('复制失败：浏览器不允许访问剪贴板')
+      setActionError(tr("复制失败：浏览器不允许访问剪贴板"))
     }
   }
 
@@ -324,10 +326,10 @@ ${agentRequest.question}` : agentRequest.question))
           <span className="muted small">{clockText(m.created_at)}</span>
         </div>
         <div className={`msg-bubble ag-body${failed ? ' is-failed' : ''}${m.stale ? ' is-stale' : ''}`}>
-          {m.stale && <div className="msg-note">基于旧版本证据，时间戳已停用</div>}
+          {m.stale && <div className="msg-note">{tr("基于旧版本证据，时间戳已停用")}</div>}
           {!m.stale && (note || m.corrected) && (
             <div className="msg-note">
-              {[note, m.corrected ? (failed ? '已尝试自动修正引用' : '引用已自动修正') : null].filter(Boolean).join(' · ')}
+              {[note, m.corrected ? (failed ? tr("已尝试自动修正引用") : tr("引用已自动修正")) : null].filter(Boolean).join(' · ')}
             </div>
           )}
           {m.content && (
@@ -340,11 +342,9 @@ ${agentRequest.question}` : agentRequest.question))
           )}
           {failed && (
             <div className="msg-error small">
-              <span>{m.error || '这条回答没有完成（引用校验失败或中断），未作为正常回答保存。'}</span>
+              <span>{systemText(m.error || tr("这条回答没有完成（引用校验失败或中断），未作为正常回答保存。"))}</span>
               {q && (
-                <button className="btn btn-small" onClick={() => void ask(q, m.id, m.options)} disabled={busy || editBusy || !enabled}>
-                  重试
-                </button>
+                <button className="btn btn-small" onClick={() => void ask(q, m.id, m.options)} disabled={busy || editBusy || !enabled}>{tr("重试")}</button>
               )}
             </div>
           )}
@@ -352,7 +352,7 @@ ${agentRequest.question}` : agentRequest.question))
         </div>
         {!failed && m.content && (
           <div className="ag-actions">
-            <button className="ag-ghost" onClick={() => void copy(m)}>{copiedId === m.id ? '已复制' : '复制'}</button>
+            <button className="ag-ghost" onClick={() => void copy(m)}>{copiedId === m.id ? tr("已复制") : tr("复制")}</button>
           </div>
         )}
       </div>
@@ -362,31 +362,31 @@ ${agentRequest.question}` : agentRequest.question))
   // 回答进行中的分步状态
   const steps: { state: 'done' | 'now'; text: string }[] = []
   if (pending && provider !== 'codex') {
-    steps.push({ state: pending.phase === 'answer' ? 'done' : 'now', text: '定位相关片段' })
+    steps.push({ state: pending.phase === 'answer' ? 'done' : 'now', text: tr("定位相关片段") })
     if (pending.phase === 'answer') {
       const ex = expandedText(pending.expanded)
       if (ex) steps.push({ state: 'done', text: ex })
-      steps.push({ state: 'now', text: pending.text ? '撰写回答' : '撰写回答…' })
+      steps.push({ state: 'now', text: pending.text ? tr("撰写回答") : tr("撰写回答…") })
     }
   }
 
   // 当前对话还没有任何消息：再点「新建」没有意义，后端也会复用这段空对话
   const currentSession = sessions?.conversations.find((s) => s.id === sessions.current_id)
   const currentIsBlank = !loading && messages.length === 0 && !currentSession?.title
-  const currentTitle = currentSession?.title || '新对话'
+  const currentTitle = currentSession?.title || tr("新对话")
   const locked = busy || sessionBusy || editBusy
   const query = pickerQuery.trim().toLowerCase()
-  const listed = (sessions?.conversations ?? []).filter((s) => !query || (s.title || '新对话').toLowerCase().includes(query))
+  const listed = (sessions?.conversations ?? []).filter((s) => !query || (s.title || tr("新对话")).toLowerCase().includes(query))
   const todayKey = new Date().toDateString()
   const groups = [
-    { label: '今天', items: listed.filter((s) => new Date(s.updated_at).toDateString() === todayKey) },
-    { label: '更早', items: listed.filter((s) => new Date(s.updated_at).toDateString() !== todayKey) },
+    { label: tr("今天"), items: listed.filter((s) => new Date(s.updated_at).toDateString() === todayKey) },
+    { label: tr("更早"), items: listed.filter((s) => new Date(s.updated_at).toDateString() !== todayKey) },
   ].filter((g) => g.items.length > 0)
 
   const suggestions = [
-    reference ? `总结「${reference.title}」这一节` : '总结这节课的主要内容',
-    '这节课有哪些容易混淆的概念？',
-    '出 3 道自测题，并附答案出处',
+    reference ? tr("总结「{0}」这一节", reference.title) : tr("总结这节课的主要内容"),
+    tr("这节课有哪些容易混淆的概念？"),
+    tr("出 3 道自测题，并附答案出处"),
   ]
 
   const onNewChat = () => {
@@ -406,7 +406,7 @@ ${agentRequest.question}` : agentRequest.question))
           <h2>Agent</h2>
           <span className="ag-tag">{provider === 'codex' ? 'Codex' : 'API'}</span>
           <span className="spacer" />
-          {undoRevision && <button className="btn btn-small btn-text" disabled={busy || editBusy || undoRevision !== outlineRevision} onClick={() => void applyEdit(true)}>撤销大纲修改</button>}
+          {undoRevision && <button className="btn btn-small btn-text" disabled={busy || editBusy || undoRevision !== outlineRevision} onClick={() => void applyEdit(true)}>{tr("撤销大纲修改")}</button>}
           {headExtra}
         </div>
         <div className="ag-session" ref={pickerRef} onKeyDown={(e) => {
@@ -419,21 +419,19 @@ ${agentRequest.question}` : agentRequest.question))
           <button className={`ag-switch-btn${pickerOpen ? ' is-open' : ''}`} type="button" aria-haspopup="listbox" aria-expanded={pickerOpen} title={currentTitle}
             onClick={() => { setPickerOpen((v) => !v); setPickerQuery('') }}>
             <span className={`ag-switch-title ellipsis${currentIsBlank ? ' is-blank' : ''}`}>{currentTitle}</span>
-            <span className="muted small">{sessions ? `${sessions.conversations.length} 个对话` : ''}</span>
+            <span className="muted small">{sessions ? tr("{0} 个对话", sessions.conversations.length) : ''}</span>
             <span className="ag-caret" aria-hidden />
           </button>
           <button className="btn ag-new" type="button" aria-disabled={currentIsBlank || undefined} disabled={locked || loading}
-            title={currentIsBlank ? '当前已经是新对话，直接提问即可' : '开始一段新对话'} onClick={onNewChat}>
-            ＋ 新对话
-          </button>
-          {blankHint && <div className="ag-tip" role="status">已经是新对话，直接提问即可</div>}
+            title={currentIsBlank ? tr("当前已经是新对话，直接提问即可") : tr("开始一段新对话")} onClick={onNewChat}>{tr("＋ 新对话")}</button>
+          {blankHint && <div className="ag-tip" role="status">{tr("已经是新对话，直接提问即可")}</div>}
           {pickerOpen && (
-            <div className="ag-pop" role="listbox" aria-label="本视频的对话">
+            <div className="ag-pop" role="listbox" aria-label={tr("本视频的对话")}>
               {(sessions?.conversations.length ?? 0) > 5 && (
-                <input className="ag-pop-search" aria-label="搜索对话" placeholder="搜索对话" value={pickerQuery} autoFocus onChange={(e) => setPickerQuery(e.target.value)} />
+                <input className="ag-pop-search" aria-label={tr("搜索对话")} placeholder={tr("搜索对话")} value={pickerQuery} autoFocus onChange={(e) => setPickerQuery(e.target.value)} />
               )}
-              {sessionError && <p className="error-text small" role="alert">{sessionError}</p>}
-              {groups.length === 0 && <p className="muted small ag-pop-empty">没有匹配的对话</p>}
+              {sessionError && <p className="error-text small" role="alert">{systemText(sessionError)}</p>}
+              {groups.length === 0 && <p className="muted small ag-pop-empty">{tr("没有匹配的对话")}</p>}
               {groups.map((g) => (
                 <div key={g.label} className="ag-pop-group">
                   <div className="ag-pop-label">{g.label}</div>
@@ -441,24 +439,24 @@ ${agentRequest.question}` : agentRequest.question))
                     <div className={`ag-pop-row${s.id === sessions?.current_id ? ' is-current' : ''}`} key={s.id}>
                       {renamingId === s.id ? (
                         <form className="ag-rename" onSubmit={(e) => { e.preventDefault(); void renameSession() }}>
-                          <input aria-label="对话标题" value={renameText} maxLength={80} autoFocus
+                          <input aria-label={tr("对话标题")} value={renameText} maxLength={80} autoFocus
                             onChange={(e) => setRenameText(e.target.value)} disabled={sessionBusy} />
-                          <button className="btn btn-small" type="submit" disabled={sessionBusy}>保存</button>
-                          <button className="btn btn-small btn-text" type="button" onClick={() => setRenamingId(null)} disabled={sessionBusy}>取消</button>
+                          <button className="btn btn-small" type="submit" disabled={sessionBusy}>{tr("保存")}</button>
+                          <button className="btn btn-small btn-text" type="button" onClick={() => setRenamingId(null)} disabled={sessionBusy}>{tr("取消")}</button>
                         </form>
                       ) : (
                         <>
                           <button className="ag-pop-choice" type="button" role="option" aria-selected={s.id === sessions?.current_id}
-                            title={`${s.title || '新对话'}\n${formatDateTime(s.updated_at)}`} disabled={locked}
+                            title={`${s.title || tr("新对话")}\n${formatDateTime(s.updated_at)}`} disabled={locked}
                             onClick={() => (s.id === sessions?.current_id ? setPickerOpen(false) : void changeSession(() => selectChatConversation(videoId, s.id)))}>
-                            <span className="ag-pop-title ellipsis">{s.title || '新对话'}</span>
+                            <span className="ag-pop-title ellipsis">{s.title || tr("新对话")}</span>
                             <span className="muted small">{clockText(s.updated_at)}</span>
                           </button>
-                          <button className="ag-icon" type="button" aria-label={`重命名“${s.title || '新对话'}”`} title="重命名" disabled={locked}
+                          <button className="ag-icon" type="button" aria-label={tr("重命名“{0}”", s.title || tr("新对话"))} title={tr("重命名")} disabled={locked}
                             onClick={() => { setSessionError(null); setRenamingId(s.id); setRenameText(s.title || '') }}>
                             <Icon d="M3 13l.7-3L10.8 3l2.2 2.2L5.9 12.3zM9.5 4.5l2 2" />
                           </button>
-                          <button className="ag-icon is-danger" type="button" aria-label={`删除“${s.title || '新对话'}”`} title="删除" disabled={locked}
+                          <button className="ag-icon is-danger" type="button" aria-label={tr("删除“{0}”", s.title || tr("新对话"))} title={tr("删除")} disabled={locked}
                             onClick={() => { setSessionError(null); setDeleteId(s.id); setConfirmDelete(true) }}>
                             <Icon d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8h5.8l.6-8" />
                           </button>
@@ -474,18 +472,18 @@ ${agentRequest.question}` : agentRequest.question))
       </div>
 
       <div className="chat-list panel-body" ref={listRef} onScroll={onScroll} aria-live="polite">
-        {loading && <p className="muted">加载中…</p>}
-        {loadError && <p className="error-text small">加载对话失败：{loadError}</p>}
-        {sessionError && !pickerOpen && <p className="error-text small" role="alert">{sessionError}</p>}
+        {loading && <p className="muted">{tr("加载中…")}</p>}
+        {loadError && <p className="error-text small">{tr("加载对话失败：")}{systemText(loadError)}</p>}
+        {sessionError && !pickerOpen && <p className="error-text small" role="alert">{systemText(sessionError)}</p>}
         {!loading && !loadError && messages.length === 0 && !busy && (
           <div className="ag-empty">
             <AgentGlyph size={40} />
             <div>
-              <strong>问这节课的任何问题</strong>
-              <p className="muted small">回答会附带可跳转的原片段，并标明是否已核对原文。</p>
+              <strong>{tr("问这节课的任何问题")}</strong>
+              <p className="muted small">{tr("回答会附带可跳转的原片段，并标明是否已核对原文。")}</p>
             </div>
             <div className="ag-suggest">
-              <span className="muted small">试试这些</span>
+              <span className="muted small">{tr("试试这些")}</span>
               {suggestions.map((t) => (
                 <button key={t} className="ag-suggest-item" disabled={!enabled || editBusy} onClick={() => void ask(t)}>
                   <span>{t}</span>
@@ -506,12 +504,12 @@ ${agentRequest.question}` : agentRequest.question))
               <div className="ag-msg-head">
                 <AgentGlyph size={22} />
                 <strong>Agent</strong>
-                <span className="muted small">{pending.interaction ? '等待回复' : '正在回答'}</span>
+                <span className="muted small">{pending.interaction ? tr("等待回复") : tr("正在回答")}</span>
               </div>
               {provider === 'codex' ? <div className="ag-live-progress" role="status">
                 <span className="ag-live-dot" aria-hidden />
-                {pending.text ? '正在生成回答' : pending.progress ?? '已发送，正在连接'}
-              </div> : <ol className="ag-steps" aria-label="回答进度">
+                {pending.text ? tr("正在生成回答") : systemText(pending.progress) || tr("已发送，正在连接")}
+              </div> : <ol className="ag-steps" aria-label={tr("回答进度")}>
                 {steps.map((s) => (
                   <li key={s.text} className={`is-${s.state}`}>
                     <span className="ag-step-mark" aria-hidden />
@@ -522,14 +520,14 @@ ${agentRequest.question}` : agentRequest.question))
               {pending.commentary && <div className="ag-commentary"><CitedMarkdown content={pending.commentary} citations={EMPTY} onSeek={onSeek} inactive="pending" /></div>}
               {pending.interaction && <AgentInteraction key={pending.interaction.id} videoId={videoId} request={pending.interaction}
                 onResolved={() => observer.resolveInteraction(pending.interaction!.id)} />}
-              {!!pending.note_updates && <p className="msg-note" role="status">笔记操作已返回，可在页面查看最新内容或待接受的修改建议。</p>}
-              {pending.corrected && <div className="msg-note">引用已自动修正</div>}
-              {pending.activity.length > 0 && <details className="chat-activity"><summary>查阅过程</summary><ul>{pending.activity.map((text, i) => <li key={i}>{text}</li>)}</ul></details>}
+              {!!pending.note_updates && <p className="msg-note" role="status">{tr("笔记操作已返回，可在页面查看最新内容或待接受的修改建议。")}</p>}
+              {pending.corrected && <div className="msg-note">{tr("引用已自动修正")}</div>}
+              {pending.activity.length > 0 && <details className="chat-activity"><summary>{tr("查阅过程")}</summary><ul>{pending.activity.map((text, i) => <li key={i}>{systemText(text)}</li>)}</ul></details>}
               <div className="msg-bubble ag-body">
                 {pending.text ? (
                   <CitedMarkdown content={pending.text} citations={EMPTY} onSeek={onSeek} inactive="pending" />
                 ) : !pending.interaction ? (
-                  <span className="typing" aria-label="正在思考">
+                  <span className="typing" aria-label={tr("正在思考")}>
                     <i />
                     <i />
                     <i />
@@ -541,58 +539,58 @@ ${agentRequest.question}` : agentRequest.question))
           </div>
         )}
         {preview && (
-          <section className="outline-preview" aria-label="大纲修改预览">
-            <h3>大纲修改预览</h3>
-            <p className="muted small">确认下列差异后，点击提交才会更新大纲。</p>
-            <pre aria-label="大纲差异">{preview.diff || '无文字差异'}</pre>
+          <section className="outline-preview" aria-label={tr("大纲修改预览")}>
+            <h3>{tr("大纲修改预览")}</h3>
+            <p className="muted small">{tr("确认下列差异后，点击提交才会更新大纲。")}</p>
+            <pre aria-label={tr("大纲差异")}>{preview.diff || tr("无文字差异")}</pre>
             <div className="settings-actions">
-              <button className="btn btn-primary btn-small" disabled={busy || editBusy} onClick={() => void applyEdit(false)}>{editBusy ? '处理中…' : '提交大纲修改'}</button>
-              <button className="btn btn-small" disabled={busy || editBusy} onClick={() => observer.dismissPreview()}>放弃修改</button>
+              <button className="btn btn-primary btn-small" disabled={busy || editBusy} onClick={() => void applyEdit(false)}>{editBusy ? tr("处理中…") : tr("提交大纲修改")}</button>
+              <button className="btn btn-small" disabled={busy || editBusy} onClick={() => observer.dismissPreview()}>{tr("放弃修改")}</button>
             </div>
           </section>
         )}
       </div>
 
-      <Splitter direction="row" sign={-1} label="拖拽调整输入框高度" controls={inputId} value={inputH} min={INPUT_H_MIN} max={INPUT_H_MAX} onStart={() => inputRef.current?.offsetHeight ?? INPUT_H_MIN} onResize={(h) => setInputH(Math.max(INPUT_H_MIN, Math.min(INPUT_H_MAX, h)))} onReset={() => setInputH(INPUT_H_MIN)} />
+      <Splitter direction="row" sign={-1} label={tr("拖拽调整输入框高度")} controls={inputId} value={inputH} min={INPUT_H_MIN} max={INPUT_H_MAX} onStart={() => inputRef.current?.offsetHeight ?? INPUT_H_MIN} onResize={(h) => setInputH(Math.max(INPUT_H_MIN, Math.min(INPUT_H_MAX, h)))} onReset={() => setInputH(INPUT_H_MIN)} />
       <div className="chat-input ag-composer">
-        {!enabled && <p className="muted small chat-hint">{disabledHint}</p>}
-        {preparing && <p className="muted small chat-hint" role="status">正在保存页面并准备发送…</p>}
+        {!enabled && <p className="muted small chat-hint">{systemText(disabledHint)}</p>}
+        {preparing && <p className="muted small chat-hint" role="status">{tr("正在保存页面并准备发送…")}</p>}
         {(actionError || observationError) && <p className="error-text small" role="alert">{actionError || observationError}</p>}
         {noteAttach && provider === 'codex' && <div className="chat-reference small">
-          <div className="chat-reference-copy"><span>{pdfTarget ? 'PDF' : '页面'} · {noteAttach}</span><p>{pdfTarget ? 'Agent 可按页读文字、看图和局部放大；OCR 在本机运行，原件只读。' : '随提问附带，Agent 可读取它并以建议的形式提出修改。'}</p></div>
-          <button className="btn btn-small btn-text" onClick={onDetachNote} aria-label="不再附带当前页面">移除</button>
+          <div className="chat-reference-copy"><span>{pdfTarget ? 'PDF' : tr("页面")} · {noteAttach}</span><p>{pdfTarget ? tr("Agent 可按页读文字、看图和局部放大；OCR 在本机运行，原件只读。") : tr("随提问附带，Agent 可读取它并以建议的形式提出修改。")}</p></div>
+          <button className="btn btn-small btn-text" onClick={onDetachNote} aria-label={tr("不再附带当前页面")}>{tr("移除")}</button>
         </div>}
         {reference && <div className="chat-reference small">
-          <div className="chat-reference-copy"><span>大纲引用 · {reference.title}</span><p>{reference.excerpt}</p></div>
-          <button className="btn btn-small btn-text" onClick={onClearReference} aria-label="移除大纲引用">移除</button>
+          <div className="chat-reference-copy"><span>{tr("大纲引用 ·")} {reference.title}</span><p>{reference.excerpt}</p></div>
+          <button className="btn btn-small btn-text" onClick={onClearReference} aria-label={tr("移除大纲引用")}>{tr("移除")}</button>
         </div>}
         <div className="ag-box">
           <textarea
             id={inputId}
             ref={inputRef}
-            aria-label="向 Agent 提问"
+            aria-label={tr("向 Agent 提问")}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder={enabled ? '问点什么，Enter 发送，Shift+Enter 换行' : '暂不可提问'}
+            placeholder={enabled ? tr("问点什么，Enter 发送，Shift+Enter 换行") : tr("暂不可提问")}
             rows={2}
             style={{ minHeight: inputH, maxHeight: Math.max(160, inputH) }}
             disabled={!enabled || editBusy}
           />
           <div className="ag-box-foot">
             {provider === 'codex' && <div className="ag-model-controls">
-              <select aria-label="当前对话模型" title="当前对话模型" value={model?.model ?? ''}
+              <select aria-label={tr("当前对话模型")} title={tr("当前对话模型")} value={model?.model ?? ''}
                 disabled={busy || sessionBusy || modelBusy || !model || !models.length}
                 onChange={event => {
                   const choice = models.find(item => item.id === event.target.value)
                   if (choice && model) void changeModel({ model: choice.id,
                     effort: choice.efforts.includes(model.effort) ? model.effort : choice.default_effort ?? choice.efforts[0] })
                 }}>
-                {!model && <option value="">加载模型…</option>}
+                {!model && <option value="">{tr("加载模型…")}</option>}
                 {model && !models.some(item => item.id === model.model) && <option value={model.model}>{model.model}</option>}
                 {models.map(item => <option key={item.id} value={item.id}>{item.display_name}</option>)}
               </select>
-              <select aria-label="推理强度" title="推理强度（reasoning effort）" value={model?.effort ?? ''}
+              <select aria-label={tr("推理强度")} title={tr("推理强度（reasoning effort）")} value={model?.effort ?? ''}
                 disabled={busy || sessionBusy || modelBusy || !model || !models.find(item => item.id === model.model)?.efforts.length}
                 onChange={event => { if (model) void changeModel({ ...model, effort: event.target.value }) }}>
                 {model && !models.find(item => item.id === model.model)?.efforts.includes(model.effort) && <option value={model.effort}>{model.effort}</option>}
@@ -602,35 +600,31 @@ ${agentRequest.question}` : agentRequest.question))
             {provider === 'codex' && (
               <label className="ag-switch small">
                 <input type="checkbox" role="switch" checked={allowEdit} disabled={busy || editBusy || !enabled} onChange={(e) => setAllowEdit(e.target.checked)} />
-                <span className="ag-track" aria-hidden />
-                允许修改大纲
-              </label>
+                <span className="ag-track" aria-hidden />{tr("允许修改大纲")}</label>
             )}
             <span className="spacer" />
             {provider === 'codex' && <UsageMeter snapshot={context} busy={busy} current={contextCurrent} compacting={compacting} />}
             {busy ? (
               <button className="btn" onClick={() => { setActionError(null); void observer.stop() }} disabled={stopping || preparing}>
-                {preparing ? '准备中…' : stopping ? '停止中…' : '停止'}
+                {preparing ? tr("准备中…") : stopping ? tr("停止中…") : tr("停止")}
               </button>
             ) : (
-              <button className="btn btn-primary" onClick={send} disabled={!enabled || editBusy || modelBusy || !input.trim()}>
-                发送
-              </button>
+              <button className="btn btn-primary" onClick={send} disabled={!enabled || editBusy || modelBusy || !input.trim()}>{tr("发送")}</button>
             )}
           </div>
         </div>
-        {modelError && provider === 'codex' && <p className="error-text small" role="alert">{modelError} <button className="ag-ghost" onClick={() => void loadModels()}>重新加载模型</button></p>}
-        <p className="muted small chat-hint">{provider === 'codex' ? '消耗 ChatGPT 套餐额度' : '按当前接口计费'}</p>
+        {modelError && provider === 'codex' && <p className="error-text small" role="alert">{systemText(modelError)} <button className="ag-ghost" onClick={() => void loadModels()}>{tr("重新加载模型")}</button></p>}
+        <p className="muted small chat-hint">{provider === 'codex' ? tr("消耗 ChatGPT 套餐额度") : tr("按当前接口计费")}</p>
       </div>
 
       <ConfirmDialog
         open={confirmDelete}
-        title="删除对话"
-        message={<p>确定删除{deleteId && deleteId !== sessions?.current_id ? '这段' : '当前'}对话的消息和笔记吗？删除后无法恢复，其他对话会保留。</p>}
-        confirmText="删除"
+        title={tr("删除对话")}
+        message={<p>{tr("确定删除")}{deleteId && deleteId !== sessions?.current_id ? tr("这段") : tr("当前")}{tr("对话的消息和笔记吗？删除后无法恢复，其他对话会保留。")}</p>}
+        confirmText={tr("删除")}
         danger
         busy={sessionBusy}
-        error={sessionError}
+        error={systemText(sessionError)}
         onConfirm={() =>
           void changeSession(async () => {
             if (deleteId && deleteId !== sessions?.current_id) await selectChatConversation(videoId, deleteId)
@@ -644,6 +638,7 @@ ${agentRequest.question}` : agentRequest.question))
 }
 
 function Icon({ d }: { d: string }) {
+  useLocale()
   return (
     <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d={d} />
@@ -652,6 +647,7 @@ function Icon({ d }: { d: string }) {
 }
 
 function AgentGlyph({ size }: { size: number }) {
+  useLocale()
   return (
     <span className="ag-glyph" style={{ width: size, height: size }} aria-hidden>
       <svg width={size * 0.6} height={size * 0.6} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -668,13 +664,14 @@ function clockText(iso: string | null | undefined): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
   if (d.toDateString() === new Date().toDateString()) return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  return `${d.getMonth() + 1}月${d.getDate()}日`
+  return d.toLocaleDateString(getLocale(), { month: 'short', day: 'numeric' })
 }
 
 function Usage({ usage }: { usage: Record<string, unknown> }) {
+  useLocale()
   const fields = [
-    ['input_tokens', '输入 token'], ['output_tokens', '输出 token'], ['reasoning_tokens', '推理 token'],
-    ['cached_input_tokens', '缓存输入 token'], ['tool_calls', '读取调用'], ['read_tokens', '返回文字 token'], ['images', '截图'],
+    ['input_tokens', tr("输入 token")], ['output_tokens', tr("输出 token")], ['reasoning_tokens', tr("推理 token")],
+    ['cached_input_tokens', tr("缓存输入 token")], ['tool_calls', tr("读取调用")], ['read_tokens', tr("返回文字 token")], ['images', tr("截图")],
   ] as const
-  return <details className="chat-usage small"><summary>本轮用量</summary><dl>{fields.map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{typeof usage[key] === 'number' ? (usage[key] as number).toLocaleString() : '未知'}</dd></div>)}</dl></details>
+  return <details className="chat-usage small"><summary>{tr("本轮用量")}</summary><dl>{fields.map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{typeof usage[key] === 'number' ? (usage[key] as number).toLocaleString(getLocale()) : tr("未知")}</dd></div>)}</dl></details>
 }

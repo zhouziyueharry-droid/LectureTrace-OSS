@@ -1,3 +1,4 @@
+import { systemText, tr, useLocale } from '../i18n.ts'
 import { useState } from 'react'
 import {
   STAGE_NAMES,
@@ -53,8 +54,8 @@ const STATUS_ICON: Record<string, string> = {
 const ROI_WAIT_MESSAGE = '等待确认幻灯片区域'
 
 function roiText(roi: Roi | null): string {
-  if (!roi || (roi[0] === 0 && roi[1] === 0 && roi[2] === 1 && roi[3] === 1)) return '整个画面'
-  return `已框选（x ${Math.round(roi[0] * 100)}%，y ${Math.round(roi[1] * 100)}%，宽 ${Math.round(roi[2] * 100)}%，高 ${Math.round(roi[3] * 100)}%）`
+  if (!roi || (roi[0] === 0 && roi[1] === 0 && roi[2] === 1 && roi[3] === 1)) return tr("整个画面")
+  return tr("已框选（x {0}%，y {1}%，宽 {2}%，高 {3}%）", Math.round(roi[0] * 100), Math.round(roi[1] * 100), Math.round(roi[2] * 100), Math.round(roi[3] * 100))
 }
 
 /** 全部阶段完成且没有失败、没有过期结果：处理栏可以收起，只在顶栏留一个入口 */
@@ -76,6 +77,7 @@ export default function StagePanel({
   onEditRoi,
   startOpen,
 }: Props) {
+  useLocale()
   const [expanded, setExpanded] = useState<boolean | null>(startOpen ? true : null)
 
   const byName = new Map<string, StageInfo>((video.stages ?? []).map((s) => [s.name, s]))
@@ -107,10 +109,10 @@ export default function StagePanel({
       const st = byName.get(n)
       return st && !(st.status === 'skipped' && DISABLED_REASONS.includes(st.error ?? ''))
     })
-    const tail = after.length ? `，并连带重跑：${after.map(stageLabel).join('、')}` : ''
+    const tail = after.length ? tr("，并连带重跑：{0}", after.map(stageLabel).join(tr("、"))) : ''
     const paid = [name, ...after].some((n) => OUTLINE_STAGES.includes(n) || n === 'translate')
-    const note = paid ? '（涉及外部服务，开始前会先显示发送清单与费用预估）' : ''
-    if (window.confirm(`重跑「${stageLabel(name)}」${tail}？${note}`)) onRetry(name)
+    const note = paid ? tr("（涉及外部服务，开始前会先显示发送清单与费用预估）") : ''
+    if (window.confirm(tr("重跑「{0}」{1}？{2}", stageLabel(name), tail, note))) onRetry(name)
   }
 
   // 旧后端没有 roi_confirmed 字段时按已确认处理
@@ -118,77 +120,68 @@ export default function StagePanel({
   const keyframesRunning = byName.get('keyframes')?.status === 'running'
 
   let summary: string
-  if (failed.length) summary = `${stageLabel(failed[0].name)}失败`
-  else if (video.status === 'awaiting_roi') summary = '字幕已完成，等待你框选幻灯片区域后开始抽帧'
-  else if (video.status === 'awaiting_confirm') summary = '本机处理完成，等待你确认发送清单'
+  if (failed.length) summary = tr("{0}失败", stageLabel(failed[0].name))
+  else if (video.status === 'awaiting_roi') summary = tr("字幕已完成，等待你框选幻灯片区域后开始抽帧")
+  else if (video.status === 'awaiting_confirm') summary = tr("本机处理完成，等待你确认发送清单")
   else if (running) {
     const p = live[running.name]?.progress
-    summary = `正在${stageLabel(running.name)}${p != null ? ` ${Math.round(p * 100)}%` : '…'}`
-  } else if (allDone) summary = '全部处理完成'
-  else summary = `已完成 ${doneCount}/${ordered.length} 个阶段`
+    summary = tr("正在{0}{1}", stageLabel(running.name), p != null ? ` ${Math.round(p * 100)}%` : '…')
+  } else if (allDone) summary = tr("全部处理完成")
+  else summary = tr("已完成 {0}/{1} 个阶段", doneCount, ordered.length)
 
   return (
-    <section className={`stage-panel${isOpen ? ' is-open' : ''}`} aria-label="处理状态">
+    <section className={`stage-panel${isOpen ? ' is-open' : ''}`} aria-label={tr("处理状态")}>
       <div className="stage-summary">
         <span className={`status-pill st-${video.status}`}>{videoStatusLabel(video.status)}</span>
         <span className="stage-summary-text">{summary}</span>
         <div className="overall-progress" aria-hidden>
           <div className="progress-bar" style={{ width: `${(doneCount / ordered.length) * 100}%` }} />
         </div>
-        {conn === 'reconnecting' && <span className="conn-warn small">与后端的连接中断，正在重连…</span>}
+        {conn === 'reconnecting' && <span className="conn-warn small">{tr("与后端的连接中断，正在重连…")}</span>}
         <div className="stage-summary-actions">
           {video.status === 'awaiting_confirm' && (
-            <button className="btn btn-small btn-primary" onClick={onOpenPlan}>
-              查看发送清单
-            </button>
+            <button className="btn btn-small btn-primary" onClick={onOpenPlan}>{tr("查看发送清单")}</button>
           )}
           {outlineOff && idle && (
             <button className="btn btn-small btn-primary" onClick={onRunOutline} disabled={retrying}
-              title="读取幻灯片 → 整理证据 → 生成大纲；确认发送前会显示费用预估">
-              运行大纲生成（7–9）
-            </button>
+              title={tr("读取幻灯片 → 整理证据 → 生成大纲；确认发送前会显示费用预估")}>{tr("运行大纲生成（7–9）")}</button>
           )}
           {canRetry && (
             <button className="btn btn-small btn-primary" onClick={() => onRetry()} disabled={retrying}>
-              {retrying ? '重试中…' : '重试'}
+              {retrying ? tr("重试中…") : tr("重试")}
             </button>
           )}
           <button className="btn btn-small" onClick={() => setExpanded(!isOpen)} aria-expanded={isOpen}>
-            {isOpen ? '收起详情' : '展开详情'}
+            {isOpen ? tr("收起详情") : tr("展开详情")}
           </button>
         </div>
       </div>
 
-      {retryError && <p className="error-text small">重试失败：{retryError}</p>}
+      {retryError && <p className="error-text small">{tr("重试失败：")}{systemText(retryError)}</p>}
 
       {failed.map((s) => (
         <div key={s.name} className="alert alert-error small">
-          <strong>{stageLabel(s.name)}失败：</strong>
-          {s.error || '未知原因'}
-          {s.attempt > 1 && <span className="muted">（已尝试 {s.attempt} 次）</span>}
+          <strong>{stageLabel(s.name)}{tr("失败：")}</strong>
+          {systemText(s.error || tr("未知原因"))}
+          {s.attempt > 1 && <span className="muted">{tr("（已尝试")} {s.attempt} {tr("次）")}</span>}
         </div>
       ))}
 
       {stale.length > 0 && (
-        <div className="alert alert-info small">
-          参数已变化，部分结果可重新处理：{stale.map(stageLabel).join('、')}
-          <button className="btn btn-small" onClick={() => onRetry(firstStale)} disabled={retrying} style={{ marginLeft: 8 }}>
-            重新处理
-          </button>
+        <div className="alert alert-info small">{tr("参数已变化，部分结果可重新处理：")}{stale.map(stageLabel).join(tr("、"))}
+          <button className="btn btn-small" onClick={() => onRetry(firstStale)} disabled={retrying} style={{ marginLeft: 8 }}>{tr("重新处理")}</button>
         </div>
       )}
 
       {isOpen && video.roi_confirmed && (
         <div className="roi-line small">
-          <span className="muted">幻灯片区域：{roiText(video.roi)}</span>
+          <span className="muted">{tr("幻灯片区域：")}{roiText(video.roi)}</span>
           <button
             className="btn-text small stage-rerun"
             onClick={onEditRoi}
             disabled={keyframesRunning}
-            title={keyframesRunning ? '正在抽帧，结束后才能修改' : '修改后只重跑抽帧及其下游，语音识别和字幕不重跑'}
-          >
-            修改区域
-          </button>
+            title={keyframesRunning ? tr("正在抽帧，结束后才能修改") : tr("修改后只重跑抽帧及其下游，语音识别和字幕不重跑")}
+          >{tr("修改区域")}</button>
         </div>
       )}
 
@@ -200,7 +193,7 @@ export default function StagePanel({
             // await_confirm 是暂停点，没有进度可言
             const isWaiting = s.name === 'await_confirm' && s.status === 'running'
             const statusText = isWaiting
-              ? '待确认'
+              ? tr("待确认")
               : s.status === 'running' && pct != null
                 ? `${pct}%`
                 : (STAGE_STATUS_LABELS[s.status] ?? s.status)
@@ -217,22 +210,20 @@ export default function StagePanel({
                   <span className="stage-name">
                     {i + 1}. {stageLabel(s.name)}
                   </span>
-                  {s.status !== 'done' && s.status !== 'pending' && <span className="stage-status small">{statusText}</span>}
+                  {s.status !== 'done' && s.status !== 'pending' && <span className="stage-status small">{systemText(statusText)}</span>}
                 </div>
                 {s.status === 'running' && !isWaiting && (
                   <div className={`progress progress-thin${pct == null ? ' indeterminate' : ''}`}>
                     <div className="progress-bar" style={{ width: pct == null ? '40%' : `${pct}%` }} />
                   </div>
                 )}
-                {s.status === 'running' && lv?.message && <div className="stage-msg small muted">{lv.message}</div>}
-                {s.status === 'skipped' && s.error && <div className="stage-msg small muted">{s.error}</div>}
+                {s.status === 'running' && lv?.message && <div className="stage-msg small muted">{systemText(lv.message)}</div>}
+                {s.status === 'skipped' && s.error && <div className="stage-msg small muted">{systemText(s.error)}</div>}
                 {s.name === 'keyframes' && s.status === 'pending' && roiPending && (
-                  <div className="stage-msg small muted">{ROI_WAIT_MESSAGE}</div>
+                  <div className="stage-msg small muted">{systemText(ROI_WAIT_MESSAGE)}</div>
                 )}
                 {idle && s.name !== 'await_confirm' && (s.status === 'done' || s.status === 'failed') && (
-                  <button className="stage-rerun btn-text small" onClick={() => rerun(s.name)} disabled={retrying}>
-                    重跑
-                  </button>
+                  <button className="stage-rerun btn-text small" onClick={() => rerun(s.name)} disabled={retrying}>{tr("重跑")}</button>
                 )}
               </li>
             )

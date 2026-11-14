@@ -1,3 +1,4 @@
+import { tr } from '../i18n.ts'
 import type { Outline, OutlineNode } from '../api.ts'
 import { clockToken } from './blocks.ts'
 
@@ -11,7 +12,7 @@ function children(nodes: OutlineNode[] | undefined, depth: number): string[] {
 }
 
 /** 把生成的大纲复制成可自由编辑的 Markdown；时间点用 [@时:分:秒]，点击仍可跳转视频 */
-export function outlineToMarkdown(outline: Outline, title = '大纲'): string {
+export function outlineToMarkdown(outline: Outline, title = tr("大纲")): string {
   const lines = [`# ${title}`]
   for (const chapter of outline.chapters) {
     lines.push('', `## ${chapter.title}${at(chapter)}`)

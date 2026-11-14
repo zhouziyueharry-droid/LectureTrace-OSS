@@ -9,7 +9,7 @@
 
 **Founder and primary maintainer:** [Harry (@zhouziyueharry-droid)](https://github.com/zhouziyueharry-droid).
 
-LectureTrace is a local desktop-browser application for studying recorded lectures. Watch the video alongside subtitles, slides, notes and PDFs; follow timestamps and citations back to the material when checking an answer. The current interface is primarily Simplified Chinese.
+LectureTrace is a local desktop-browser application for studying recorded lectures. Watch the video alongside subtitles, slides, notes and PDFs; follow timestamps and citations back to the material when checking an answer. Choose English or Simplified Chinese in **Settings → Interface language**. The preference is saved in your browser and applies immediately across the interface; course content and the separate AI output language setting are unchanged.
 
 ## What it does
 

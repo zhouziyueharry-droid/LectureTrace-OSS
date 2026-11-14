@@ -1,5 +1,13 @@
 # MCP 接入与工具契约
 
+## 网页状态检查
+
+在 **设置 → 本机 MCP / Settings → Local MCP** 查看依赖、HTTP 启用状态、工具列表、课程库读取结果和最近检查时间，点击「重新检查」刷新。支持中英文界面。HTTP 未配置令牌时仍可检查已初始化的本机工具与课程库；这不表示 stdio 客户端已连接。
+
+`GET /api/mcp/status` 返回 `state`（`missing_dependency` / `disabled` / `starting` / `ready` / `error`）、`token_configured`、`endpoint`、`tools`、`library_readable`、`protocol_version`、`error_code`、`checked_at`、`latency_ms`，响应禁止缓存。HTTP 启用时经当前 ASGI 实例的 TokenGate 执行 initialize、tools/list 和 list_videos；禁用时直接检查同一实例的工具与课程库，协议版本为 null。空课程库视为可读；`library_readable=null` 表示未检查，false 表示读取失败。超时为五秒，错误仅返回固定代码，不返回令牌、课程内容或内部诊断。
+
+检查不接收外部 URL、不启停进程、不调用模型、不处理课程。它验证当前后端内部能力，不验证操作系统端口、外部客户端、tunnel 或 stdio 的独立进程连接状态。
+
 LectureTrace 的 MCP 是通用协议服务，不依赖 Codex 登录、app-server 或专有工具格式。支持 MCP 的客户端可选择 stdio 或 Streamable HTTP；客户端需要支持图片工具结果且所选模型具备视觉能力，才能利用幻灯片图片。
 
 读取已经处理的课程。八个工具不导入、删除、重跑视频，不写笔记、不调用模型。图片定位接收客户端明确提供的查询图片，仅在内存里处理。MCP 本身不产生模型调用费用，但客户端使用返回的课程材料时仍遵循该客户端的数据处理和计费方式。
@@ -110,6 +118,8 @@ stdio 在启动时加载原生图像依赖，避免 Windows 上在 MCP stdin 阻
 T 为 ASR 转录（可能识别错误）；页 S 的文字和出现 S/N 的摘要是模型生成内容；公式/图示用图片核对。对外引用需要保留 video_id、version、证据 ID 和时间。外部 AI 的最终回答不经过网页的引用验证器；本版不承诺点击时间戳就能在外部客户端直接播放。
 
 ## 已验证范围
+
+另有独立的[云端共享课程服务](proposals/0030-sites-course-mcp.md)：同学接入 `https://lecturetrace-course-mcp.onrender.com/mcp`，身份验证选 **None／无身份验证**。九个只读工具运行于 Render Node 服务，Sites 保留介绍页、R2 数据及独立管理导入接口；原 Sites `/mcp` 仍受其平台认证保护，不能作为个人账号之间的直接分享入口。Render 只有云端数据读取凭据，没有导入凭据、本机凭据或 tunnel。图片反查仍关闭，旧 Python/OpenCV 服务保持暂停。新增已处理课程沿用原导入脚本，至多约 60 秒刷新目录，不需要部署或重新处理。八讲全文已通过公网逐字比较，截图按 SHA-256 核对，七讲的六种导航工具与导出结果一致；Week7 缺少本地 evidence/outline 的情况明确报错。Render 免费实例空闲后会休眠，可先访问 `/health` 唤醒。现有本机 MCP 不改动、不重启。
 
 标准 Python SDK 客户端：stdio 和 Streamable HTTP 均完成握手、发现十个工具、整课原文、时间取图、图片定位、单元简介、完整单元转写与 JPEG 图片读取。额外使用原始 JSON-RPC 测试 2024-11-05、2025-03-26、2025-06-18 协议初始化；SDK 默认协商 2025-11-25。不是“所有 AI 产品都已实测”的声明。
 

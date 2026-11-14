@@ -337,17 +337,20 @@ class TokenGate:
 class McpHTTP:
     def __init__(self):
         self.app = None
+        self.server = None
 
     @asynccontextmanager
     async def lifespan(self):
         # SDK session managers are single-use, including across repeated app lifespans.
         server = create_server()
+        self.server = server
         self.app = TokenGate(server.streamable_http_app())
         try:
             async with server.session_manager.run():
                 yield
         finally:
             self.app = None
+            self.server = None
 
     async def __call__(self, scope, receive, send):
         if self.app is None:

@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n.ts'
 import { useRef, type KeyboardEvent, type PointerEvent } from 'react'
 
 interface Props {
@@ -24,6 +25,7 @@ const KEY_STEP = 24
 
 /** 可拖拽也可用方向键调整的分隔条，鼠标、触屏、键盘共用一套 */
 export default function Splitter({ direction, label, controls, value, min, max, onStart, onResize, sign = 1, onReset, className }: Props) {
+  useLocale()
   const drag = useRef<{ p: number; base: number } | null>(null)
   const col = direction === 'col'
 
@@ -57,8 +59,8 @@ export default function Splitter({ direction, label, controls, value, min, max, 
       aria-valuenow={Math.round(value)}
       aria-valuemin={Math.floor(min)}
       aria-valuemax={Math.ceil(max)}
-      aria-valuetext={`${Math.round(value)} 像素`}
-      title={onReset ? `${label}（双击恢复）` : label}
+      aria-valuetext={tr("{0} 像素", Math.round(value))}
+      title={onReset ? tr("{0}（双击恢复）", label) : label}
       tabIndex={0}
       className={`splitter splitter-${direction}${className ? ` ${className}` : ''}`}
       onPointerDown={onPointerDown}

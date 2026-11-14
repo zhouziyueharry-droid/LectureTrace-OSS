@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n.ts'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { formatTime, type KeyframeDebug } from '../api.ts'
 
@@ -54,6 +55,7 @@ const BAND_H = 16 // 详细图顶部的幻灯片色带
 const PAD_B = 16 // 底部时间刻度
 
 export default function KeyframeTimeline(props: Props) {
+  const locale = useLocale()
   const { debug, slideIndex, duration, windowStart, span, currentTime, onWindowStart, onHover, onSeek } = props
   const overview = useCanvas(OVERVIEW_H)
   const detail = useCanvas(DETAIL_H)
@@ -128,7 +130,7 @@ export default function KeyframeTimeline(props: Props) {
       ctx.globalAlpha = 1
       if (x1 - x0 > 30) {
         ctx.fillStyle = '#fff'
-        ctx.fillText('空白', x0 + 3, BAND_H / 2)
+        ctx.fillText(tr("空白"), x0 + 3, BAND_H / 2)
       }
     }
 
@@ -209,7 +211,7 @@ export default function KeyframeTimeline(props: Props) {
       ctx.fillText(formatTime(t), x(t) + 2, DETAIL_H - 3)
       ctx.fillRect(x(t), DETAIL_H - PAD_B, 1, 4)
     }
-    ctx.fillText(`阈值 ${debug.threshold}%`, 4, yOf(debug.threshold) - 3)
+    ctx.fillText(tr("阈值 {0}%", debug.threshold), 4, yOf(debug.threshold) - 3)
 
     // 当前播放位置与悬停线
     if (currentTime >= windowStart && currentTime <= windowEnd) {
@@ -221,7 +223,7 @@ export default function KeyframeTimeline(props: Props) {
       ctx.fillRect(hoverX, BAND_H, 1, DETAIL_H - BAND_H - PAD_B)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detail, debug, slideIndex, duration, windowStart, windowEnd, currentTime, hoverX])
+  }, [detail, debug, slideIndex, duration, windowStart, windowEnd, currentTime, hoverX, locale])
 
   // ---------- 交互 ----------
   const tAt = (e: React.MouseEvent<HTMLCanvasElement>, from: number, to: number) => {
@@ -251,7 +253,7 @@ export default function KeyframeTimeline(props: Props) {
         onMouseMove={(e) => dragging.current && moveWindow(e)}
         onMouseUp={() => (dragging.current = false)}
         onMouseLeave={() => (dragging.current = false)}
-        title="点击或拖动选择下方放大显示的时间段"
+        title={tr("点击或拖动选择下方放大显示的时间段")}
       />
       <canvas
         ref={detail.ref}

@@ -11,6 +11,7 @@ const require = createRequire(import.meta.url)
 const source = readFileSync(new URL('../src/components/Splitter.tsx', import.meta.url), 'utf8')
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, jsx: ts.JsxEmit.ReactJSX } }).outputText
   .replace(/from (["'])(react(?:\/jsx-runtime)?)\1/g, (_, quote, name) => `from ${quote}${pathToFileURL(require.resolve(name)).href}${quote}`)
+  .replace("'../i18n.ts'", JSON.stringify(new URL('../src/i18n.ts', import.meta.url).href))
 const { default: Splitter } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`)
 for (const direction of ['row', 'col']) {
   const html = renderToStaticMarkup(createElement(Splitter, {

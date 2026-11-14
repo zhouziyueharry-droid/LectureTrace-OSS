@@ -1,3 +1,4 @@
+import { tr } from '../i18n.ts'
 import { errorText, type ChatEvent, type ChatMessage, type ChatRun, type ChatConversations, type ContextSnapshot, type OutlinePreview } from '../api.ts'
 import type * as api from '../api.ts'
 
@@ -69,7 +70,7 @@ export function createChatObservation(videoId: string, transport: ChatTransport,
       const savedFailure = run.status === 'error' && last?.role === 'assistant' && last.status === 'failed' && last.created_at >= run.created_at ? last : null
       const message: LocalMessage = {
         ...(run.message ?? savedFailure ?? { id: `local-run-${run.id}`, role: 'assistant', content: run.pending.text,
-          citations: [], created_at: run.created_at, status: 'failed', error: run.error ?? '回答已中断' }),
+          citations: [], created_at: run.created_at, status: 'failed', error: run.error ?? tr("回答已中断") }),
         question: run.question, options: { ...run.options, allow_outline_edit: !!run.options.allow_outline_edit }, expanded: run.pending.expanded,
         corrected: run.pending.corrected, usage: run.pending.usage,
       }
@@ -100,7 +101,7 @@ export function createChatObservation(videoId: string, transport: ChatTransport,
       case 'compaction': run.compacting = event.active; break
       case 'outline_preview': run.preview = event.preview; break
       case 'done': run.status = 'done'; run.message = event.message; break
-      case 'error': run.status = 'error'; run.error = event.error || '回答失败'; break
+      case 'error': run.status = 'error'; run.error = event.error || tr("回答失败"); break
     }
     accept(observation, run)
   }
@@ -111,7 +112,7 @@ export function createChatObservation(videoId: string, transport: ChatTransport,
     if (signal.aborted) finish()
     else signal.addEventListener('abort', finish, { once: true })
   })
-  const recover = async (observation: Observation, initial?: ChatRun, failure = '连接意外结束，回答可能不完整') => {
+  const recover = async (observation: Observation, initial?: ChatRun, failure = tr("连接意外结束，回答可能不完整")) => {
     if (initial) accept(observation, initial)
     while (current(observation) && !observation.finished) {
       if (initial) await pause(observation.controller.signal)
@@ -120,12 +121,12 @@ export function createChatObservation(videoId: string, transport: ChatTransport,
         const run = await transport.getChatRun(videoId, observation.run?.conversation_id, observation.controller.signal)
         if (!current(observation)) return
         if (!run || run.id !== observation.run?.id || run.conversation_id !== observation.run.conversation_id) {
-          receive(observation, { type: 'error', error: initial ? '当前运行已变化，请重新加载对话查看最新状态。' : failure })
+          receive(observation, { type: 'error', error: initial ? tr("当前运行已变化，请重新加载对话查看最新状态。") : failure })
           return
         }
         accept(observation, run)
       } catch {
-        if (current(observation)) update({ error: '连接中断，正在重新连接；不会重复发送问题。' })
+        if (current(observation)) update({ error: tr("连接中断，正在重新连接；不会重复发送问题。") })
       }
       initial = observation.run ?? undefined
     }
@@ -176,7 +177,7 @@ export function createChatObservation(videoId: string, transport: ChatTransport,
     }
     update({ messages })
     accept(observation, run)
-    let failure = '连接意外结束，回答可能不完整'
+    let failure = tr("连接意外结束，回答可能不完整")
     try {
       await transport.askStream(videoId, question, event => receive(observation, event), observation.controller.signal, { ...options, run_id: run.id })
     } catch (error) {
@@ -198,7 +199,7 @@ export function createChatObservation(videoId: string, transport: ChatTransport,
       if (current(observation)) update({ context: null })
     } catch (error) {
       if (current(observation)) {
-        observation.stopError = `停止失败：${errorText(error)}`
+        observation.stopError = tr("停止失败：{0}", errorText(error))
         update({ error: observation.stopError })
       }
     } finally {

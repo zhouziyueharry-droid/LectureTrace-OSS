@@ -1,3 +1,4 @@
+import { tr, useLocale } from './i18n.ts'
 import { Link, Route, Routes } from 'react-router-dom'
 import AppShell from './components/AppShell.tsx'
 import { LibraryProvider } from './library.tsx'
@@ -9,6 +10,7 @@ import SettingsPage from './pages/SettingsPage.tsx'
 import VideoPage from './pages/VideoPage.tsx'
 
 export default function App() {
+  useLocale()
   return (
     <LibraryProvider>
       <Routes>
@@ -24,8 +26,8 @@ export default function App() {
           path="*"
           element={
             <div className="page-center">
-              <p>页面不存在。</p>
-              <Link to="/">返回课程库</Link>
+              <p>{tr("页面不存在。")}</p>
+              <Link to="/">{tr("返回课程库")}</Link>
             </div>
           }
         />

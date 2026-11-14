@@ -122,3 +122,18 @@ def test_manual_edit_does_not_revalidate_stale_citations(client, monkeypatch):
     assert notes.read(VID, '引用.md')['stale']
     updated = notes.save(VID, '引用.md', '说明 [T0001]\n我的补充', original['revision'])
     assert updated['stale'] and not updated['citations']
+
+
+def test_existing_range_note_resolves_without_rewriting_and_keeps_stale_guard(client, monkeypatch):
+    index = {f'T{i:04}': {'jump': i * 10} for i in range(152, 155)}
+    monkeypatch.setattr(notes, '_evidence', lambda _: ('v1', index))
+    original = notes.save(VID, 'range.md', 'Existing note [T0152-T0154]', None)
+    path = artifacts.video_dir(VID) / 'notes/range.md'
+    before = path.read_bytes()
+    result = client.get(f'/api/videos/{VID}/notes/range.md').json()
+    assert result['citations'] == [{'id': key, 'start': value['jump']} for key, value in index.items()]
+    assert result['text'] == original['text'] and result['revision'] == original['revision']
+    assert path.read_bytes() == before
+    monkeypatch.setattr(notes, '_evidence', lambda _: ('v2', index))
+    stale = client.get(f'/api/videos/{VID}/notes/range.md').json()
+    assert stale['stale'] and stale['citations'] == []

@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n.ts'
 import { createContext, memo, useContext, useMemo } from 'react'
 import Markdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -11,8 +12,9 @@ import { parseClock } from '../notes/blocks.ts'
 export const CITE_ID = 'S\\d{3,}(?:\\.\\d+)?|N\\d{3,}|T\\d{4,}'
 const ID = `(?:${CITE_ID})`
 const SEP = '\\s*[,，、;；]\\s*'
-// 匹配 [S012]、[S012.2]、[T0142]，也兼容 [S012, T0142] 这样的合并写法
-const CITE_RE = new RegExp(`\\[(${ID}(?:${SEP}${ID})*)\\]`, 'g')
+const ITEM = `(?:T\\d{4,}\\s*[-–—]\\s*T\\d{4,}|${ID})`
+// 与后端 citations.py 一致：兼容旧笔记的合并引用及 T 范围，正文不回写。
+const CITE_RE = new RegExp(`\\[\\s*(${ITEM}(?:${SEP}${ITEM})*)\\s*\\]`, 'g')
 const SPLIT_RE = new RegExp(SEP)
 const HREF_PREFIX = '#cite-'
 const NAV_RE = new RegExp(`\\[定位:(${ID})\\]`, 'g')
@@ -22,12 +24,25 @@ const CLOCK_PREFIX = '#clock-'
 const PDF_RE = /\[(PDF:[^\]\s]+)\]/g
 export const PdfNavigation = createContext<((citation: Citation) => void) | null>(null)
 
+function expandCitation(item: string): string[] {
+  const id = item.trim()
+  const range = /^T(\d{4,})\s*[-–—]\s*T(\d{4,})$/.exec(id)
+  if (range && Math.max(range[1].length, range[2].length) <= 15) {
+    const start = Number(range[1]), end = Number(range[2])
+    // Bound untrusted ranges; only server-resolved IDs receive active jump buttons.
+    if (end >= start && end - start < 1000) {
+      return Array.from({ length: end - start + 1 }, (_, i) => `T${String(start + i).padStart(range[1].length, '0')}`)
+    }
+  }
+  return [id]
+}
+
 /** ID 的中文说明，用于悬停提示 */
 export function citeKind(id: string): string {
-  if (id.startsWith('定位:')) return `课程位置 ${id.slice(3)}（仅用于定位）`
-  if (id.startsWith('S')) return id.includes('.') ? `幻灯片 ${id.split('.')[0]} 的第 ${id.split('.')[1]} 次出现` : `幻灯片 ${id}`
-  if (id.startsWith('N')) return `无幻灯片时段 ${id}`
-  return `讲解片段 ${id}`
+  if (id.startsWith('定位:')) return tr("课程位置 {0}（仅用于定位）", id.slice(3))
+  if (id.startsWith('S')) return id.includes('.') ? tr("幻灯片 {0} 的第 {1} 次出现", id.split('.')[0], id.split('.')[1]) : tr("幻灯片 {0}", id)
+  if (id.startsWith('N')) return tr("无幻灯片时段 {0}", id)
+  return tr("讲解片段 {0}", id)
 }
 
 /** 把引用改写成特殊链接，交给下面的 a 渲染器：有时间的渲染为跳转按钮，没有的渲染为不可点的标记 */
@@ -35,6 +50,7 @@ function preprocess(content: string): string {
   return content.replace(PDF_RE, (_whole, id: string) => `[PDF](${HREF_PREFIX}${id})`).replace(CLOCK_RE, (_whole, t: string) => `[${t}](${CLOCK_PREFIX}${t})`).replace(NAV_RE, (_whole, id: string) => `[定位:${id}](${HREF_PREFIX}定位:${id})`).replace(CITE_RE, (_whole: string, inner: string) =>
     inner
       .split(SPLIT_RE)
+      .flatMap(expandCitation)
       .map((id) => `[${id}](${HREF_PREFIX}${id})`)
       .join(' '),
   )
@@ -55,12 +71,13 @@ interface Props {
 }
 
 const INACTIVE_TITLE = {
-  pending: '回答完成后可点击跳转',
-  stale: '基于旧版本证据，时间戳已停用',
-  invalid: '没有找到这条引用的时间',
+  get pending() { return tr("回答完成后可点击跳转") },
+  get stale() { return tr("基于旧版本证据，时间戳已停用") },
+  get invalid() { return tr("没有找到这条引用的时间") },
 }
 
 function CitedMarkdown({ content, citations, onSeek, inactive }: Props) {
+  const locale = useLocale()
   const openPdf = useContext(PdfNavigation)
   const starts = useMemo(() => new Map(citations.map((c) => [c.id, c.start])), [citations])
   const pdfCites = useMemo(() => new Map(citations.filter((c) => c.pdf_id).map((c) => [c.id, c])), [citations])
@@ -69,7 +86,7 @@ function CitedMarkdown({ content, citations, onSeek, inactive }: Props) {
   const components = useMemo<Components>(
     () => ({
       table({ children }) {
-        return <div className="md-table-scroll" role="region" aria-label="回答中的表格" tabIndex={0}><table>{children}</table></div>
+        return <div className="md-table-scroll" role="region" aria-label={tr("回答中的表格")} tabIndex={0}><table>{children}</table></div>
       },
       a({ href, children }) {
         if (href?.startsWith(CLOCK_PREFIX)) {
@@ -77,7 +94,7 @@ function CitedMarkdown({ content, citations, onSeek, inactive }: Props) {
           const sec = parseClock(label)
           if (sec == null) return <span className="cite-badge is-off">{label}</span>
           return (
-            <button type="button" className="cite-badge cite-clock" title={`跳转到 ${label}`} onClick={() => onSeek(sec)}>
+            <button type="button" className="cite-badge cite-clock" title={tr("跳转到 {0}", label)} onClick={() => onSeek(sec)}>
               <span aria-hidden>▶</span> {label}
             </button>
           )
@@ -87,8 +104,8 @@ function CitedMarkdown({ content, citations, onSeek, inactive }: Props) {
           try { id = decodeURIComponent(id) } catch { /* 非法转义保持不可跳转 */ }
           if (id.startsWith('PDF:')) {
             const cite = pdfCites.get(id)
-            return cite?.url && openPdf ? <button type="button" className="cite-badge cite-pdf" onClick={() => openPdf(cite)} title={`${cite.title} · 第 ${cite.page} 页`}>PDF · {cite.page} 页</button> :
-              <span className="cite-badge cite-pdf is-off" title={inactive === 'pending' ? '回答完成后可打开' : 'PDF 引用未通过校验或原件已不可用'}>PDF</span>
+            return cite?.url && openPdf ? <button type="button" className="cite-badge cite-pdf" onClick={() => openPdf(cite)} title={tr("{0} · 第 {1} 页", cite.title, cite.page)}>PDF · {cite.page} {tr("页")}</button> :
+              <span className="cite-badge cite-pdf is-off" title={inactive === 'pending' ? tr("回答完成后可打开") : tr("PDF 引用未通过校验或原件已不可用")}>PDF</span>
           }
           const start = inactive === 'stale' ? undefined : starts.get(id)
           const kind = citeKind(id)
@@ -105,10 +122,10 @@ function CitedMarkdown({ content, citations, onSeek, inactive }: Props) {
             <button
               type="button"
               className={`cite-badge cite-${navigation ? 'N' : id[0]}`}
-              title={`${kind} · 跳转到 ${formatTime(start)}`}
+              title={tr("{0} · 跳转到 {1}", kind, formatTime(start))}
               onClick={() => onSeek(start)}
             >
-              <span aria-hidden>▶</span> {navigation ? '定位 ' : ''}{formatTime(start)}
+              <span aria-hidden>▶</span> {navigation ? tr("定位 ") : ''}{formatTime(start)}
             </button>
           )
         }
@@ -119,7 +136,7 @@ function CitedMarkdown({ content, citations, onSeek, inactive }: Props) {
         )
       },
     }),
-    [starts, pdfCites, onSeek, inactive, openPdf],
+    [starts, pdfCites, onSeek, inactive, openPdf, locale],
   )
 
   return (

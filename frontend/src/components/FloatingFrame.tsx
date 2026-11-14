@@ -1,3 +1,4 @@
+import { tr, useLocale } from '../i18n.ts'
 import { useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react'
 import { clamp, type FloatBox } from '../useLayoutPrefs.ts'
 
@@ -50,6 +51,7 @@ function snap(box: FloatBox): FloatBox {
 /** 视频容器：平时是网格里的一格；浮起时变成可拖动、可缩放的页面内小窗。
  *  两种状态渲染同一结构，里面的播放器不会重新挂载，播放不中断。 */
 export default function FloatingFrame({ floating, hidden, onHide, box, avoidRight = 0, onBox, onDock, children }: Props) {
+  useLocale()
   const [live, setLiveState] = useState<FloatBox | null>(null)
   const liveRef = useRef<FloatBox | null>(null)
   const setLive = (b: FloatBox | null) => { liveRef.current = b; setLiveState(b) }
@@ -92,24 +94,22 @@ export default function FloatingFrame({ floating, hidden, onHide, box, avoidRigh
   return (
     <div id="vp-player" hidden={hidden} className={`vp-player${floating ? ' is-floating' : ''}${live ? ' is-dragging' : ''}`} style={style}>
       {floating && (
-        <div className="float-bar" role="group" tabIndex={0} aria-label="视频小窗：拖动或用方向键移动，双击放回"
+        <div className="float-bar" role="group" tabIndex={0} aria-label={tr("视频小窗：拖动或用方向键移动，双击放回")}
           onPointerDown={start('move')} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end}
           onDoubleClick={onDock} onKeyDown={onKey}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
             {[4, 8, 12].flatMap((y) => [6, 10].map((x) => <circle key={`${x}-${y}`} cx={x} cy={y} r="1.1" />))}
           </svg>
-          <span className="float-bar-hint">拖动移动</span>
+          <span className="float-bar-hint">{tr("拖动移动")}</span>
           <span className="spacer" />
-          <button type="button" className="float-dock" onClick={onHide}>收起视频</button>
-          <button type="button" className="float-dock" onClick={onDock} title="放回原位">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2" /><path d="M5 6l3 3 3-3" /></svg>
-            放回
-          </button>
+          <button type="button" className="float-dock" onClick={onHide}>{tr("收起视频")}</button>
+          <button type="button" className="float-dock" onClick={onDock} title={tr("放回原位")}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2" /><path d="M5 6l3 3 3-3" /></svg>{tr("放回")}</button>
         </div>
       )}
       {children}
       {floating && (
-        <div className="float-resize" aria-hidden title="拖动调整小窗大小"
+        <div className="float-resize" aria-hidden title={tr("拖动调整小窗大小")}
           onPointerDown={start('resize')} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onLostPointerCapture={end} />
       )}
     </div>

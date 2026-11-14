@@ -1,5 +1,6 @@
+import { systemText, tr, useLocale, getLocale } from '../i18n.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { PDFViewer, PdfAnnotationSubtype, type PDFViewerRef, type PluginRegistry, type AnnotationPlugin, type DocumentManagerPlugin, type ExportPlugin, type ScrollPlugin, type CommandsPlugin } from '@embedpdf/react-pdf-viewer'
+import { PDFViewer, PdfAnnotationSubtype, type PDFViewerRef, type PluginRegistry, type AnnotationPlugin, type DocumentManagerPlugin, type ExportPlugin, type ScrollPlugin, type CommandsPlugin, type I18nPlugin } from '@embedpdf/react-pdf-viewer'
 import wasmUrl from '@embedpdf/pdfium/pdfium.wasm?url'
 import chineseFont from '../../node_modules/@embedpdf/fonts-sc/fonts/NotoSansHans-Regular.otf?url'
 import { errorText, pdfFileUrl, uploadPdf, type PdfDocument } from '../api.ts'
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export default function PdfDoc({ videoId, pdf, onDelete, onSaved, registerLeave, jump }: Props) {
+  const locale = useLocale()
   const viewer = useRef<PDFViewerRef>(null)
   const registry = useRef<PluginRegistry | null>(null)
   const cleanups = useRef<(() => void)[]>([])
@@ -28,12 +30,16 @@ export default function PdfDoc({ videoId, pdf, onDelete, onSaved, registerLeave,
   const [ready, setReady] = useState(false)
   const [layoutReady, setLayoutReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [status, setStatus] = useState('正在加载 PDF…')
+  const [status, setStatus] = useState(tr("正在加载 PDF…"))
   const url = pdfFileUrl(videoId, pdf)
+
+  useEffect(() => {
+    registry.current?.getPlugin<I18nPlugin>('i18n')?.provides().setLocale(locale)
+  }, [locale])
 
   const mayLeave = useCallback(() => {
     if (busyRef.current) return false
-    return version.current === savedVersion.current || window.confirm('PDF 批注尚未保存或导出。放弃这些修改并离开？')
+    return version.current === savedVersion.current || window.confirm(tr("PDF 批注尚未保存或导出。放弃这些修改并离开？"))
   }, [])
   useEffect(() => {
     if (layoutReady && jump) registry.current?.getPlugin<ScrollPlugin>('scroll')?.provides().forDocument(pdf.id)
@@ -58,18 +64,19 @@ export default function PdfDoc({ videoId, pdf, onDelete, onSaved, registerLeave,
 
   const onReady = (value: PluginRegistry) => {
     registry.current = value
+    value.getPlugin<I18nPlugin>('i18n')?.provides().setLocale(getLocale())
     const scroll = value.getPlugin<ScrollPlugin>('scroll')!.provides()
     cleanups.current.push(scroll.onLayoutReady((event) => { if (event.documentId === pdf.id) setLayoutReady(true) }))
     if (scroll.forDocument(pdf.id).getLayout().virtualItems.length > 0) setLayoutReady(true)
     const documents = value.getPlugin<DocumentManagerPlugin>('document-manager')!.provides()
-    const loaded = () => { setReady(true); setStatus('批注后可保存副本或导出') }
+    const loaded = () => { setReady(true); setStatus(tr("批注后可保存副本或导出")) }
     if (documents.getActiveDocument()) loaded()
-    cleanups.current.push(documents.onDocumentOpened(loaded), documents.onDocumentError((e) => setError(`PDF 加载失败：${e.message}`)))
+    cleanups.current.push(documents.onDocumentOpened(loaded), documents.onDocumentError((e) => setError(tr("PDF 加载失败：{0}", e.message))))
     cleanups.current.push(value.getPlugin<AnnotationPlugin>('annotation')!.provides().onAnnotationEvent((event) => {
       if (event.type !== 'loaded' && !event.committed) {
         version.current++
         setDirty(true)
-        setStatus('批注未保存')
+        setStatus(tr("批注未保存"))
       }
     }))
     // v2's FreeText blur handler only runs once until another annotation is selected.
@@ -121,7 +128,7 @@ export default function PdfDoc({ videoId, pdf, onDelete, onSaved, registerLeave,
     busyRef.current = true
     setBusy(true)
     setError(null)
-    setStatus(copy ? '正在保存副本…' : '正在导出…')
+    setStatus(copy ? tr("正在保存副本…") : tr("正在导出…"))
     const snapshot = version.current
     try {
       const annotations = registry.current.getPlugin<AnnotationPlugin>('annotation')!.provides().forDocument(pdf.id)
@@ -130,11 +137,11 @@ export default function PdfDoc({ videoId, pdf, onDelete, onSaved, registerLeave,
       // replace this guard when the engine supports embedded Unicode annotation fonts.
       if (annotations.getAnnotations().some(({ commitState, object }) =>
         (commitState === 'new' || commitState === 'dirty') && object.type === PdfAnnotationSubtype.FREETEXT && /[^\x00-\x7F]/.test(object.contents))) {
-        throw new Error('文字框暂只支持英文，请将中文改放在「评论」中')
+        throw new Error(tr("文字框暂只支持英文，请将中文改放在「评论」中"))
       }
       await annotations.commit().toPromise()
       const buffer = await registry.current.getPlugin<ExportPlugin>('export')!.provides().forDocument(pdf.id).saveAsCopy().toPromise()
-      const name = `${pdf.name.replace(/\.pdf$/i, '').slice(0, 152)}（批注）.pdf`
+      const name = tr("{0}（批注）.pdf", pdf.name.replace(/\.pdf$/i, '').slice(0, 152))
       let result: PdfDocument | null = null
       if (copy) result = await uploadPdf(videoId, new File([buffer], name, { type: 'application/pdf' }))
       else {
@@ -147,30 +154,30 @@ export default function PdfDoc({ videoId, pdf, onDelete, onSaved, registerLeave,
       }
       savedVersion.current = snapshot
       setDirty(version.current !== snapshot)
-      setStatus(copy ? '副本已保存到页面列表' : '已导出批注 PDF')
+      setStatus(copy ? tr("副本已保存到页面列表") : tr("已导出批注 PDF"))
       if (result) onSaved(result)
     } catch (e) {
-      setError(`${copy ? '保存' : '导出'}失败：${errorText(e)}。修改仍在，可重试。`)
-      setStatus('修改尚未保存')
+      setError(tr("{0}失败：{1}。修改仍在，可重试。", copy ? tr("保存") : tr("导出"), errorText(e)))
+      setStatus(tr("修改尚未保存"))
     } finally { busyRef.current = false; setBusy(false) }
   }
 
   return (
     <section className="pdf-doc" aria-label={`PDF：${pdf.name}`}>
       <footer className="pdf-toolbar">
-        <span className={dirty ? 'pdf-dirty' : 'muted'} role="status">{busy ? status : dirty ? '批注未保存' : !ready ? status : `${pdf.page_count} 页 · 原件保留`}</span>
-        {dirty && <button className="btn btn-small btn-text" disabled={!ready || busy} onClick={() => void save(true)}>保存副本</button>}
+        <span className={dirty ? 'pdf-dirty' : 'muted'} role="status">{systemText(busy ? status : dirty ? tr("批注未保存") : !ready ? status : tr("{0} 页 · 原件保留", pdf.page_count))}</span>
+        {dirty && <button className="btn btn-small btn-text" disabled={!ready || busy} onClick={() => void save(true)}>{tr("保存副本")}</button>}
         <details className="pdf-actions">
-          <summary>PDF 操作</summary>
+          <summary>{tr("PDF 操作")}</summary>
           <div className="nd-menu">
-            <button disabled={!ready || busy} onClick={() => void save(false)}>导出 PDF</button>
-            <button disabled={!ready || busy || (!dirty && version.current === 0)} onClick={() => void save(true)}>保存副本</button>
-            <button className="is-danger" disabled={busy} onClick={onDelete}>移到回收站</button>
-            <p>中文批注请用「评论」，文字框暂限英文。保存会新建副本，原件保留。</p>
+            <button disabled={!ready || busy} onClick={() => void save(false)}>{tr("导出 PDF")}</button>
+            <button disabled={!ready || busy || (!dirty && version.current === 0)} onClick={() => void save(true)}>{tr("保存副本")}</button>
+            <button className="is-danger" disabled={busy} onClick={onDelete}>{tr("移到回收站")}</button>
+            <p>{tr("中文批注请用「评论」，文字框暂限英文。保存会新建副本，原件保留。")}</p>
           </div>
         </details>
       </footer>
-      {error && <p className="pdf-hint error-text small" role="alert">{error} <a href={url} target="_blank" rel="noreferrer">打开原件</a></p>}
+      {error && <p className="pdf-hint error-text small" role="alert">{systemText(error)} <a href={url} target="_blank" rel="noreferrer">{tr("打开原件")}</a></p>}
       <div className={`pdf-editor${busy ? ' is-busy' : ''}`} {...(busy ? { inert: '' } : {})}>
         <PDFViewer ref={viewer} className="pdf-reader" onReady={onReady} config={{
           wasmUrl: new URL(wasmUrl, window.location.href).href,
@@ -178,7 +185,7 @@ export default function PdfDoc({ videoId, pdf, onDelete, onSaved, registerLeave,
           fonts: { ui: null, signature: null },
           stamp: { manifests: [], libraries: [] },
           documentManager: { initialDocuments: [{ url, documentId: pdf.id, name: pdf.name }], maxDocuments: 1 },
-          tabBar: 'never', i18n: { defaultLocale: 'zh-CN' },
+          tabBar: 'never', i18n: { defaultLocale: getLocale() },
           theme: { preference: document.documentElement.dataset.theme === 'dark' ? 'dark' : document.documentElement.dataset.theme === 'light' ? 'light' : 'system' },
           annotations: { autoCommit: false, annotationAuthor: 'LectureTrace', autoOpenLinks: false },
           disabledCategories: ['document-open', 'document-close', 'document-export', 'document-print', 'document-protect', 'redaction', 'form', 'insert', 'rotate', 'annotation-stamp'],

@@ -163,6 +163,16 @@ def test_path_validation_and_unknown_tools_fail_closed(course):
     assert not ws.call("search", {"queries": ["x"], "chapter": "missing"})["success"]
 
 
+def test_range_note_requires_every_member_to_have_been_read(course):
+    ws = build(course)
+    assert ws.call('read_evidence', {'ids': ['T0002', 'T0004']})['success']
+    args = {'path': 'notes/range.md', 'text': '结论 [T0002-T0004]', 'base_revision': None}
+    assert not ws.call('write_note', args)['success']
+    assert ws.call('read_evidence', {'ids': ['T0003']})['success']
+    assert ws.call('write_note', args)['success']
+    assert [c['id'] for c in notes.read(VID, 'range.md')['citations']] == ['T0002', 'T0003', 'T0004']
+
+
 def test_screenshot_cannot_escape_video_directory(course, tmp_path):
     outside = tmp_path / "outside.jpg"
     Image.new("RGB", (32, 32)).save(outside)

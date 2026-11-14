@@ -1,6 +1,12 @@
 export interface EditorGroup { id: number; tabs: string[]; active: string }
 export interface EditorLayout { groups: EditorGroup[]; focused: number; opened: string[]; next: number }
 
+export function editorColumns(groups: EditorGroup[], weights: Record<number, number>): string {
+  const total = groups.reduce((sum, group) => sum + (weights[group.id] ?? 1), 0)
+  // CSS fr totals below 1 leave unused space after resized groups are closed/merged.
+  return groups.map(group => `minmax(240px, ${(weights[group.id] ?? 1) / total * groups.length}fr)`).join(' 5px ')
+}
+
 export function initialEditors(tabs: string[] = ['outline'], active = tabs[0] ?? ''): EditorLayout {
   const opened = [...new Set([...tabs, ...(active ? [active] : [])])]
   return { groups: [{ id: 0, tabs: opened, active }], focused: 0, opened, next: 1 }

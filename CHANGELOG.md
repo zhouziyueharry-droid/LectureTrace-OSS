@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Keep the editor filling its available width after resizing and merging or closing split groups, while preserving multi-column proportions.
+
+- Render transcript citation ranges in existing notes as individually validated timestamp links, without rewriting note content. Answer and note prompts now require separate citation IDs.
+
+- Add a bilingual Local MCP status panel in Settings, with tool discovery, read-only library checks and HTTP protocol diagnostics. HTTP configuration and client-managed stdio connectivity are distinguished.
+
+- Add an English/Simplified Chinese interface selector in Settings, with immediate updates, browser persistence and same-origin tab synchronization.
+- Localize application routes, dialogs, player controls, processing status, chat controls, notes, PDF viewer, settings and common system messages. Course content and AI output language remain independent.
+
 ## 0.1.0 — 2026-11-01
 
 Initial public source release, based on the existing LectureTrace application.

@@ -1,3 +1,4 @@
+import { systemText, tr, useLocale } from '../i18n.ts'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   discardNoteProposal, errorText, getNoteProposal, renameNote, resolveNoteProposal, restoreNoteVersion,
@@ -30,10 +31,11 @@ interface Props {
 const ILLEGAL = /[<>:"/\\|?*\x00-\x1f]/g
 
 const STATUS: Record<string, string> = {
-  loading: '读取中…', saved: '已自动保存', dirty: '正在输入…', saving: '保存中…', error: '保存失败', conflict: '有新版本待处理',
+  get loading() { return tr("读取中…") }, get saved() { return tr("已自动保存") }, get dirty() { return tr("正在输入…") }, get saving() { return tr("保存中…") }, get error() { return tr("保存失败") }, get conflict() { return tr("有新版本待处理") },
 }
 
 export default function NoteDoc(props: Props) {
+  useLocale()
   const { videoId, name, refreshKey, onChanged, onSeek, getTime, agentEnabled, onAgent, autoFocusTitle, onRenamed, onDelete, onDuplicate, onExport, registerFlush } = props
   const doc = useNoteDocument(videoId, name, refreshKey, onChanged)
   const base = name.replace(/\.md$/i, '')
@@ -106,7 +108,7 @@ export default function NoteDoc(props: Props) {
     setNotice(null)
     try {
       const note = await flushRef.current()
-      if (!note) throw new Error('页面还有没处理的冲突，请先处理再完成审阅')
+      if (!note) throw new Error(tr("页面还有没处理的冲突，请先处理再完成审阅"))
       const accepted = new Set(hunks.filter((h) => decisions[h.id] === 'accept').map((h) => h.id))
       const applied = applyHunks(parseBlocks(note.text), hunks, accepted)
       await resolveNoteProposal(videoId, name, {
@@ -151,7 +153,7 @@ export default function NoteDoc(props: Props) {
 
   const restore = async (versionId: string) => {
     const note = await doc.flush()
-    if (!note) throw new Error('页面有没处理的冲突，请先处理再恢复')
+    if (!note) throw new Error(tr("页面有没处理的冲突，请先处理再恢复"))
     await restoreNoteVersion(videoId, name, versionId, note.revision)
     await doc.refresh()
     onChanged()
@@ -160,59 +162,59 @@ export default function NoteDoc(props: Props) {
   const stale = doc.base?.stale ?? false
   const citations = doc.base?.citations ?? []
   const reviewOpen = proposal !== null && hunks.length > 0 && (pendingPlaced.length > 0 || pendingConflicts.length > 0)
-  const statusText = doc.storageError ? '本机草稿暂存失败，请等保存完成再切换' : STATUS[doc.status]
+  const statusText = doc.storageError ? tr("本机草稿暂存失败，请等保存完成再切换") : STATUS[doc.status]
 
   return (
-    <section className="note-doc" aria-label={`页面 ${base}`}>
+    <section className="note-doc" aria-label={tr("页面 {0}", base)}>
       <header className="nd-head">
-        <span className="nd-crumb">笔记</span>
+        <span className="nd-crumb">{tr("笔记")}</span>
         <span className="spacer" />
-        <span className={`nd-status is-${doc.status}`} role="status">{statusText}</span>
-        {doc.status === 'error' && <button type="button" className="btn btn-small" onClick={doc.retry}>重试</button>}
-        <button type="button" className="btn btn-small btn-text" onClick={() => setDrawer((v) => !v)} aria-pressed={drawer}>历史</button>
+        <span className={`nd-status is-${doc.status}`} role="status">{systemText(statusText)}</span>
+        {doc.status === 'error' && <button type="button" className="btn btn-small" onClick={doc.retry}>{tr("重试")}</button>}
+        <button type="button" className="btn btn-small btn-text" onClick={() => setDrawer((v) => !v)} aria-pressed={drawer}>{tr("历史")}</button>
         <div className="nd-more-wrap">
-          <button type="button" className="btn btn-small btn-text nd-more" aria-label="更多操作" aria-expanded={menu} onClick={() => setMenu((v) => !v)}>⋯</button>
+          <button type="button" className="btn btn-small btn-text nd-more" aria-label={tr("更多操作")} aria-expanded={menu} onClick={() => setMenu((v) => !v)}>⋯</button>
           {menu && (
             <div className="nd-menu" role="menu">
-              <button type="button" role="menuitem" onClick={() => { setMenu(false); setEditingTitle(true) }}>重命名</button>
-              <button type="button" role="menuitem" onClick={() => { setMenu(false); void doc.flush().then((note) => onExport(name, note?.text ?? doc.text)) }}>导出 Markdown</button>
-              <button type="button" role="menuitem" onClick={() => { setMenu(false); onDuplicate(name) }}>创建副本</button>
-              <button type="button" role="menuitem" className="is-danger" onClick={() => { setMenu(false); onDelete(name) }}>移到回收站</button>
+              <button type="button" role="menuitem" onClick={() => { setMenu(false); setEditingTitle(true) }}>{tr("重命名")}</button>
+              <button type="button" role="menuitem" onClick={() => { setMenu(false); void doc.flush().then((note) => onExport(name, note?.text ?? doc.text)) }}>{tr("导出 Markdown")}</button>
+              <button type="button" role="menuitem" onClick={() => { setMenu(false); onDuplicate(name) }}>{tr("创建副本")}</button>
+              <button type="button" role="menuitem" className="is-danger" onClick={() => { setMenu(false); onDelete(name) }}>{tr("移到回收站")}</button>
             </div>
           )}
         </div>
       </header>
 
       {reviewOpen && (
-        <div className="nd-review" role="region" aria-label="审阅 Agent 的修改">
+        <div className="nd-review" role="region" aria-label={tr("审阅 Agent 的修改")}>
           <span className="sg-chip">Agent</span>
-          <strong title="原文还没有变，接受后才写入">提出了 {pendingPlaced.length + pendingConflicts.length} 处修改</strong>
+          <strong title={tr("原文还没有变，接受后才写入")}>{tr("提出了")} {pendingPlaced.length + pendingConflicts.length} {tr("处修改")}</strong>
           <span className="spacer" />
-          <button type="button" className="btn btn-small" disabled={reviewBusy} onClick={() => decideAll('reject')}>全部拒绝</button>
+          <button type="button" className="btn btn-small" disabled={reviewBusy} onClick={() => decideAll('reject')}>{tr("全部拒绝")}</button>
           {pendingPlaced.length > 0
-            ? <button type="button" className="btn btn-small sg-accept" disabled={reviewBusy} onClick={() => decideAll('accept')}>全部接受</button>
-            : <button type="button" className="btn btn-small sg-accept" disabled={reviewBusy} onClick={() => decideAll('reject')}>完成审阅</button>}
+            ? <button type="button" className="btn btn-small sg-accept" disabled={reviewBusy} onClick={() => decideAll('accept')}>{tr("全部接受")}</button>
+            : <button type="button" className="btn btn-small sg-accept" disabled={reviewBusy} onClick={() => decideAll('reject')}>{tr("完成审阅")}</button>}
         </div>
       )}
       {notice && (
-        <div className="alert alert-warn small nd-alert" role="alert"><span>{notice}</span>
-          {proposal && <button type="button" className="btn btn-small" onClick={() => void dropProposal()}>放弃这份建议</button>}
-          <button type="button" className="btn btn-small btn-text" onClick={() => setNotice(null)}>知道了</button></div>
+        <div className="alert alert-warn small nd-alert" role="alert"><span>{systemText(notice)}</span>
+          {proposal && <button type="button" className="btn btn-small" onClick={() => void dropProposal()}>{tr("放弃这份建议")}</button>}
+          <button type="button" className="btn btn-small btn-text" onClick={() => setNotice(null)}>{tr("知道了")}</button></div>
       )}
       {doc.status === 'error' && doc.error && !doc.loaded && (
-        <div className="alert alert-warn small nd-alert" role="alert"><span>{doc.error}</span><button type="button" className="btn btn-small" onClick={() => void doc.refresh()}>重试读取</button></div>
+        <div className="alert alert-warn small nd-alert" role="alert"><span>{systemText(doc.error)}</span><button type="button" className="btn btn-small" onClick={() => void doc.refresh()}>{tr("重试读取")}</button></div>
       )}
       {doc.status === 'conflict' && (
         <div className="alert alert-warn small nd-alert" role="alert">
-          <span>这个页面在别处被改过，并且改到了你正在改的同一段。</span>
-          <button type="button" className="btn btn-small" onClick={() => doc.resolveConflict('mine')}>用我的版本覆盖</button>
-          <button type="button" className="btn btn-small" onClick={() => doc.resolveConflict('theirs')}>载入最新版本</button>
+          <span>{tr("这个页面在别处被改过，并且改到了你正在改的同一段。")}</span>
+          <button type="button" className="btn btn-small" onClick={() => doc.resolveConflict('mine')}>{tr("用我的版本覆盖")}</button>
+          <button type="button" className="btn btn-small" onClick={() => doc.resolveConflict('theirs')}>{tr("载入最新版本")}</button>
         </div>
       )}
 
       <div className="nd-scroll">
         <article className="nd-article">
-          {editingTitle && <input ref={titleRef} className="nd-title" aria-label="页面标题（也是文件名）" value={title} maxLength={60} placeholder="无标题" spellCheck={false}
+          {editingTitle && <input ref={titleRef} className="nd-title" aria-label={tr("页面标题（也是文件名）")} value={title} maxLength={60} placeholder={tr("无标题")} spellCheck={false}
             onChange={(event) => setTitle(event.target.value)} onBlur={() => { void commitTitle(); setEditingTitle(false) }}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.blur() }
@@ -225,11 +227,11 @@ export default function NoteDoc(props: Props) {
                 <SuggestionCard hunk={hunk} decision={decisions[hunk.id]} citations={citations} stale={stale} onSeek={onSeek}
                   onDecide={(decision) => decide(hunk.id, decision)} />
               )} />
-          ) : <p className="muted nd-loading">{doc.error ? '无法打开页面' : '正在打开页面…'}</p>}
+          ) : <p className="muted nd-loading">{doc.error ? tr("无法打开页面") : tr("正在打开页面…")}</p>}
           {conflicts.length > 0 && (
-            <section className="nd-conflicts" aria-label="无法自动应用的建议">
-              <h3>无法自动应用的建议</h3>
-              <p className="muted small">这些建议改的是你后来改过的段落。可以参考后手动修改，用完点「忽略」。</p>
+            <section className="nd-conflicts" aria-label={tr("无法自动应用的建议")}>
+              <h3>{tr("无法自动应用的建议")}</h3>
+              <p className="muted small">{tr("这些建议改的是你后来改过的段落。可以参考后手动修改，用完点「忽略」。")}</p>
               {conflicts.map((hunk) => (
                 <SuggestionCard key={hunk.id} hunk={hunk} conflict decision={decisions[hunk.id]} citations={citations} stale={stale} onSeek={onSeek}
                   onDecide={(decision) => decide(hunk.id, decision)} />

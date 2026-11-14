@@ -1,3 +1,4 @@
+import { systemText, tr, useLocale } from '../i18n.ts'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link, useBlocker, useParams } from 'react-router-dom'
 import { createNote, deleteNote, errorText, formatTime, getNote, getOutline, listNotes, markNoteSeen, restoreTrashedNote, retryVideo, runOutline, stageLabel, type NoteItem, type NoteTarget, type Outline, type Roi, type StageName } from '../api.ts'
@@ -30,11 +31,13 @@ const isFullFrame = (r: Roi | null | undefined) => !r || (r[0] === 0 && r[1] ===
 
 /** 以 id 为 key 重新挂载，切换视频时状态全部重置 */
 export default function VideoPageRoute() {
+  useLocale()
   const { id = '' } = useParams()
   return <VideoPage key={id} id={id} />
 }
 
 function VideoPage({ id }: { id: string }) {
+  useLocale()
   const { video, loadError, notFound, live, conn, refresh } = useVideoProgress(id)
   const { courses, videos: allVideos } = useLibrary()
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -137,7 +140,7 @@ function VideoPage({ id }: { id: string }) {
     const revision = citation.revision ?? citation.id.split(':')[2]
     const opened = pdfWindows.find((w) => w.pdf.id === citation.pdf_id)
     if (!pdf || pdf.revision !== revision || (opened && opened.pdf.revision !== revision) || !Number.isInteger(citation.page) || citation.page! < 1 || citation.page! > pdf.page_count) {
-      setToast({ text: '无法定位 PDF：原件已删除、版本已变化或页码无效。' })
+      setToast({ text: tr("无法定位 PDF：原件已删除、版本已变化或页码无效。") })
       return
     }
     openPdf(pdf, citation.page)
@@ -287,13 +290,13 @@ function VideoPage({ id }: { id: string }) {
     setTitleFocus(name)
     window.setTimeout(() => setTitleFocus(null), 400)
   }, [])
-  const newPage = useCallback(async (title = '无标题', text = '') => {
+  const newPage = useCallback(async (title = tr("无标题"), text = '') => {
     try {
       const note = await createNote(id, { title, text })
       refreshNotes()
       setPage(note.name)
       if (!text) focusTitle(note.name)
-    } catch (e) { setToast({ text: `新建页面失败：${errorText(e)}` }) }
+    } catch (e) { setToast({ text: tr("新建页面失败：{0}", errorText(e)) }) }
   }, [id, refreshNotes, focusTitle])
   const renamed = useCallback((oldName: string, newName: string) => {
     setEditors(old => renameEditor(old, oldName, newName))
@@ -308,27 +311,27 @@ function VideoPage({ id }: { id: string }) {
         setPdfWindows((windows) => windows.filter((w) => w.pdf.id !== pdfId))
         setEditors(old => closeEditor(old, name))
         refreshNotes()
-        setToast({ text: 'PDF 已移到回收站', undo: () => { void restorePdf(id, pdfId).then((pdf) => {
+        setToast({ text: tr("PDF 已移到回收站"), undo: () => { void restorePdf(id, pdfId).then((pdf) => {
           setNotes((old) => [...old.filter((n) => n.name !== name), pdfPage(pdf)])
           openPdf(pdf)
           setToast(null)
-        }, (e) => setToast({ text: `恢复失败：${errorText(e)}` })) } })
+        }, (e) => setToast({ text: tr("恢复失败：{0}", errorText(e)) })) } })
         return
       }
       const { trash_id } = await deleteNote(id, name)
       closeTab(name)
       refreshNotes()
       setToast({
-        text: `已移到回收站：「${pageTitle(name)}」`,
-        undo: () => { void restoreTrashedNote(id, trash_id).then((note) => { refreshNotes(); openPage(note.name); setToast(null) }, (e) => setToast({ text: `恢复失败：${errorText(e)}` })) },
+        text: tr("已移到回收站：「{0}」", pageTitle(name)),
+        undo: () => { void restoreTrashedNote(id, trash_id).then((note) => { refreshNotes(); openPage(note.name); setToast(null) }, (e) => setToast({ text: tr("恢复失败：{0}", errorText(e)) })) },
       })
-    } catch (e) { setToast({ text: `删除失败：${errorText(e)}` }) }
+    } catch (e) { setToast({ text: tr("删除失败：{0}", errorText(e)) }) }
   }, [id, closeTab, refreshNotes, openPage, openPdf])
   const duplicatePage = useCallback(async (name: string) => {
     try {
       const note = await getNote(id, name)
-      await newPage(`${pageTitle(name)} 副本`, note.text || '\n')
-    } catch (e) { setToast({ text: `创建副本失败：${errorText(e)}` }) }
+      await newPage(tr("{0} 副本", pageTitle(name)), note.text || '\n')
+    } catch (e) { setToast({ text: tr("创建副本失败：{0}", errorText(e)) }) }
   }, [id, newPage])
   const exportPage = useCallback((name: string, text: string) => {
     const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }))
@@ -348,7 +351,7 @@ function VideoPage({ id }: { id: string }) {
     if (action === 'rename') { openPage(name); focusTitle(name) }
     else if (action === 'duplicate') void duplicatePage(name)
     else if (action === 'delete') void removePage(name)
-    else void getNote(id, name).then((note) => exportPage(name, note.text), (e) => setToast({ text: `导出失败：${errorText(e)}` }))
+    else void getNote(id, name).then((note) => exportPage(name, note.text), (e) => setToast({ text: tr("导出失败：{0}", errorText(e)) }))
   }, [id, notes, openPage, focusTitle, duplicatePage, removePage, exportPage])
   const importPdf = async (file: File) => {
     setImportingPdf(true)
@@ -357,12 +360,12 @@ function VideoPage({ id }: { id: string }) {
       const item = pdfPage(pdf)
       setNotes((old) => [...old, item])
       openPdf(pdf)
-      setToast({ text: `已导入「${pdf.name}」· ${pdf.page_count} 页` })
-    } catch (e) { setToast({ text: `导入 PDF 失败：${errorText(e)}` }) }
+      setToast({ text: tr("已导入「{0}」· {1} 页", pdf.name, pdf.page_count) })
+    } catch (e) { setToast({ text: tr("导入 PDF 失败：{0}", errorText(e)) }) }
     finally { setImportingPdf(false) }
   }
   const copyOutlineToNote = useCallback(() => {
-    if (outline) void newPage('大纲（可编辑）', outlineToMarkdown(outline))
+    if (outline) void newPage(tr("大纲（可编辑）"), outlineToMarkdown(outline))
   }, [outline, newPage])
 
   const getTime = useCallback(() => videoRef.current?.currentTime ?? 0, [])
@@ -371,11 +374,11 @@ function VideoPage({ id }: { id: string }) {
     const title = pageTitle(page)
     const quote = (text: string) => text.split('\n').map((line) => `> ${line}`).join('\n')
     let question: string
-    if (!ask.send) question = `关于笔记「${title}」里的这一段：\n${quote(ask.quote)}\n`
+    if (!ask.send) question = tr("关于笔记「{0}」里的这一段：\n{1}\n", title, quote(ask.quote))
     else if (ask.where === 'insert') {
-      question = `请在笔记「${title}」里${ask.before ? '下面这一段之后' : '合适的位置'}新增一段内容，只新增，已有内容逐字保留，用 write_note 以修改建议提交整页新正文。${ask.before ? `\n\n上文：\n${quote(ask.before)}` : ''}\n\n要求：${ask.instruction}`
+      question = tr("请在笔记「{0}」里{1}新增一段内容，只新增，已有内容逐字保留，用 write_note 以修改建议提交整页新正文。{2}\n\n要求：{3}", title, ask.before ? tr("下面这一段之后") : tr("合适的位置"), ask.before ? tr("\n\n上文：\n{0}", quote(ask.before)) : '', ask.instruction)
     } else {
-      question = `请处理笔记「${title}」里的这一段，只改动这一段，其余内容逐字保留，用 write_note 以修改建议提交整页新正文。\n\n原文：\n${quote(ask.quote)}\n\n要求：${ask.instruction}`
+      question = tr("请处理笔记「{0}」里的这一段，只改动这一段，其余内容逐字保留，用 write_note 以修改建议提交整页新正文。\n\n原文：\n{1}\n\n要求：{2}", title, quote(ask.quote), ask.instruction)
     }
     setAgentRequest({ id: Date.now(), question, send: ask.send })
     layout.openChat()
@@ -414,8 +417,8 @@ function VideoPage({ id }: { id: string }) {
   if (notFound) {
     return (
       <div className="page-center">
-        <p>视频不存在或已被删除。</p>
-        <Link to="/">返回首页</Link>
+        <p>{tr("视频不存在或已被删除。")}</p>
+        <Link to="/">{tr("返回首页")}</Link>
       </div>
     )
   }
@@ -425,14 +428,12 @@ function VideoPage({ id }: { id: string }) {
       <div className="page-center">
         {loadError ? (
           <>
-            <p className="error-text">加载失败：{loadError}</p>
-            <button className="btn" onClick={() => void refresh()}>
-              重新加载
-            </button>
-            <Link to="/">返回首页</Link>
+            <p className="error-text">{tr("加载失败：")}{systemText(loadError)}</p>
+            <button className="btn" onClick={() => void refresh()}>{tr("重新加载")}</button>
+            <Link to="/">{tr("返回首页")}</Link>
           </>
         ) : (
-          <p className="muted">加载中…</p>
+          <p className="muted">{tr("加载中…")}</p>
         )}
       </div>
     )
@@ -458,41 +459,39 @@ function VideoPage({ id }: { id: string }) {
 
   // ----- 各种占位提示 -----
   const running = video.stages.find((s) => s.status === 'running')
-  const currentStepText = running ? `当前：${stageLabel(running.name)}` : ''
+  const currentStepText = running ? tr("当前：{0}", stageLabel(running.name)) : ''
   const subsHint =
     translate?.status === 'failed'
-      ? '字幕翻译失败，见上方状态'
+      ? tr("字幕翻译失败，见上方状态")
       : video.status === 'awaiting_confirm'
-        ? '确认发送后开始翻译字幕'
+        ? tr("确认发送后开始翻译字幕")
         : translate?.status === 'running'
-          ? '正在翻译字幕…'
-          : '字幕尚未生成'
+          ? tr("正在翻译字幕…")
+          : tr("字幕尚未生成")
 
   let outlinePlaceholder: ReactNode
   if (outlineStage?.status === 'skipped') {
     outlinePlaceholder = (
       <>
-        <p className="muted">这个视频还没有生成大纲。</p>
-        <p className="muted small">
-          点上方的"运行大纲生成"（会先显示费用预估），或到设置页开启"自动生成大纲"。也可以先到{' '}
-          <Link to={`/videos/${id}/keyframes`}>抽帧展示台</Link> 检查切出的幻灯片。
-        </p>
+        <p className="muted">{tr("这个视频还没有生成大纲。")}</p>
+        <p className="muted small">{tr("点上方的\"运行大纲生成\"（会先显示费用预估），或到设置页开启\"自动生成大纲\"。也可以先到")}{' '}
+          <Link to={`/videos/${id}/keyframes`}>{tr("抽帧展示台")}</Link>{tr("检查切出的幻灯片。")}</p>
       </>
     )
   } else if (outlineStage?.status === 'failed') {
-    outlinePlaceholder = <p className="error-text small">大纲生成失败：{outlineStage.error || '未知原因'}</p>
+    outlinePlaceholder = <p className="error-text small">{tr("大纲生成失败：")}{systemText(outlineStage.error || tr("未知原因"))}</p>
   } else if (video.status === 'awaiting_confirm') {
-    outlinePlaceholder = <p className="muted">确认发送清单后才会生成大纲。</p>
+    outlinePlaceholder = <p className="muted">{tr("确认发送清单后才会生成大纲。")}</p>
   } else if (outlineStage?.status === 'done') {
-    outlinePlaceholder = <p className="muted">大纲暂不可用。</p>
+    outlinePlaceholder = <p className="muted">{tr("大纲暂不可用。")}</p>
   } else if (video.status === 'failed') {
-    outlinePlaceholder = <p className="muted">处理中断，重试后继续生成大纲。</p>
+    outlinePlaceholder = <p className="muted">{tr("处理中断，重试后继续生成大纲。")}</p>
   } else {
     outlinePlaceholder = (
       <>
-        <p className="muted">大纲将在处理完成后显示。</p>
+        <p className="muted">{tr("大纲将在处理完成后显示。")}</p>
         {currentStepText && <p className="muted small">{currentStepText}</p>}
-        {subsVersion && <p className="muted small">字幕已就绪，可以先观看视频。</p>}
+        {subsVersion && <p className="muted small">{tr("字幕已就绪，可以先观看视频。")}</p>}
       </>
     )
   }
@@ -510,10 +509,10 @@ function VideoPage({ id }: { id: string }) {
   const chatEnabled = evidenceStage?.status === 'done'
   const chatHint =
     evidenceStage?.status === 'skipped'
-      ? 'Agent 暂未启用。'
+      ? tr("Agent 暂未启用。")
       : video.status === 'awaiting_confirm'
-      ? '确认发送清单并完成处理后才能向 Agent 提问。'
-      : 'Agent 在"整理证据"阶段完成后可用。'
+      ? tr("确认发送清单并完成处理后才能向 Agent 提问。")
+      : tr("Agent 在\"整理证据\"阶段完成后可用。")
 
   // 默认左列上视频、下页面区，右列 Agent；仍支持把 Agent 停到视频下方。
   // 视频浮成小窗时网格里只剩页面区（占满）和 Agent
@@ -529,12 +528,12 @@ function VideoPage({ id }: { id: string }) {
   const dockButton = !stacked && !videoOut && (
     <button type="button" className="btn btn-small btn-text ag-dock-btn" disabled={fit.autoBelow}
       onClick={() => layout.setChatDock(fit.chatPlace === 'below' ? 'side' : 'below')}
-      title={fit.autoBelow ? '窗口太窄，右侧放不下，已停到视频下方' : fit.chatPlace === 'below' ? '把 Agent 移到右侧' : '把 Agent 停到视频下方'}>
+      title={fit.autoBelow ? tr("窗口太窄，右侧放不下，已停到视频下方") : fit.chatPlace === 'below' ? tr("把 Agent 移到右侧") : tr("把 Agent 停到视频下方")}>
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
         <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2" />
         {fit.chatPlace === 'below' ? <path d="M10 2.75v10.5" /> : <path d="M1.75 9h12.5" />}
       </svg>
-      {fit.chatPlace === 'below' ? '移到右侧' : '停到视频下方'}
+      {fit.chatPlace === 'below' ? tr("移到右侧") : tr("停到视频下方")}
     </button>
   )
 
@@ -542,21 +541,18 @@ function VideoPage({ id }: { id: string }) {
     <PdfNavigation.Provider value={openPdfCitation}>
     <div className="video-page ide-page" data-arrangement={fit.arrangement}>
       <header className="vp-head">
-        <button id="page-files-toggle" type="button" className="btn btn-small" aria-label={filesOpen ? '收起文件栏' : '展开文件栏'} aria-expanded={filesOpen} aria-controls="page-files" onClick={() => setFilesOpen(v => !v)}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden><rect x="2" y="2.5" width="12" height="11" rx="1"/><path d="M6 2.5v11"/></svg>文件
-        </button>
+        <button id="page-files-toggle" type="button" className="btn btn-small" aria-label={filesOpen ? tr("收起文件栏") : tr("展开文件栏")} aria-expanded={filesOpen} aria-controls="page-files" onClick={() => setFilesOpen(v => !v)}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden><rect x="2" y="2.5" width="12" height="11" rx="1"/><path d="M6 2.5v11"/></svg>{tr("文件")}</button>
         <button id="video-visibility" type="button" className="btn btn-small" aria-controls="vp-player" aria-expanded={!layout.videoHidden}
-          onClick={() => layout.videoHidden ? layout.setVideoHidden(false) : hideVideo()}>{layout.videoHidden ? '打开视频' : '收起视频'}</button>
-        <Link to="/" className="back-link" title="回到课程库">
-          课程库
-        </Link>
+          onClick={() => layout.videoHidden ? layout.setVideoHidden(false) : hideVideo()}>{layout.videoHidden ? tr("打开视频") : tr("收起视频")}</button>
+        <Link to="/" className="back-link" title={tr("回到课程库")}>{tr("课程库")}</Link>
         <span className="muted" aria-hidden>/</span>
         {video.course_id ? (
           <Link to={`/courses/${encodeURIComponent(video.course_id)}`} className="back-link">
-            {courseTitle ?? '课程'}
+            {courseTitle ?? tr("课程")}
           </Link>
         ) : (
-          <Link to="/inbox" className="back-link">未归类</Link>
+          <Link to="/inbox" className="back-link">{tr("未归类")}</Link>
         )}
         <span className="muted" aria-hidden>/</span>
         <h1 className="vp-title ellipsis" title={video.filename}>
@@ -566,13 +562,13 @@ function VideoPage({ id }: { id: string }) {
         {siblings.length > 1 && (
           <span className="lt-lecnav">
             {prev ? (
-              <Link to={`/videos/${encodeURIComponent(prev.id)}`} className="btn btn-small" title={prev.title || prev.filename} aria-label="上一讲">‹</Link>
+              <Link to={`/videos/${encodeURIComponent(prev.id)}`} className="btn btn-small" title={prev.title || prev.filename} aria-label={tr("上一讲")}>‹</Link>
             ) : (
               <span className="btn btn-small" aria-disabled="true">‹</span>
             )}
             <span className="mono small muted">{pos + 1} / {siblings.length}</span>
             {next ? (
-              <Link to={`/videos/${encodeURIComponent(next.id)}`} className="btn btn-small" title={next.title || next.filename} aria-label="下一讲">›</Link>
+              <Link to={`/videos/${encodeURIComponent(next.id)}`} className="btn btn-small" title={next.title || next.filename} aria-label={tr("下一讲")}>›</Link>
             ) : (
               <span className="btn btn-small" aria-disabled="true">›</span>
             )}
@@ -580,18 +576,14 @@ function VideoPage({ id }: { id: string }) {
         )}
         <span className="spacer" />
         {settled && (
-          <button type="button" className="stage-chip" aria-expanded={stagesOpen} onClick={() => setStagesOpen((v) => !v)} title="处理已完成，点开查看各阶段、重新处理">
-            {video.stale_stages?.length ? '处理详情 · 有更新' : '处理详情'}
+          <button type="button" className="stage-chip" aria-expanded={stagesOpen} onClick={() => setStagesOpen((v) => !v)} title={tr("处理已完成，点开查看各阶段、重新处理")}>
+            {video.stale_stages?.length ? tr("处理详情 · 有更新") : tr("处理详情")}
           </button>
         )}
-        <Link to={`/videos/${id}/keyframes`} className="btn btn-small">
-          抽帧展示台
-        </Link>
-        <Link to="/settings" className="btn btn-small">
-          设置
-        </Link>
+        <Link to={`/videos/${id}/keyframes`} className="btn btn-small">{tr("抽帧展示台")}</Link>
+        <Link to="/settings" className="btn btn-small">{tr("设置")}</Link>
         <ThemeToggle />
-        <button type="button" className={`btn btn-small vp-agent-toggle${layout.chatOpen ? ' is-on' : ''}`} aria-expanded={layout.chatOpen} aria-controls="vp-agent" onClick={layout.toggleChat} title={layout.chatOpen ? '收起 Agent 侧栏' : '呼出 Agent 侧栏'}>
+        <button type="button" className={`btn btn-small vp-agent-toggle${layout.chatOpen ? ' is-on' : ''}`} aria-expanded={layout.chatOpen} aria-controls="vp-agent" onClick={layout.toggleChat} title={layout.chatOpen ? tr("收起 Agent 侧栏") : tr("呼出 Agent 侧栏")}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2" /><path d="M10 2.75v10.5" /></svg>
           Agent
         </button>
@@ -603,7 +595,7 @@ function VideoPage({ id }: { id: string }) {
         live={live}
         conn={conn}
         retrying={retrying}
-        retryError={retryError}
+        retryError={systemText(retryError)}
         onRetry={(from) => void doRetry(from)}
         onRunOutline={() => void doRunOutline()}
         onOpenPlan={() => {
@@ -618,12 +610,10 @@ function VideoPage({ id }: { id: string }) {
           <div className="alert alert-warn small roi-line">
             <span>
               {video.status === 'awaiting_roi'
-                ? '字幕已完成，框选幻灯片区域后才会开始抽帧。'
-                : '尚未确认幻灯片区域：确认后才会开始抽帧（语音识别照常进行）。'}
+                ? tr("字幕已完成，框选幻灯片区域后才会开始抽帧。")
+                : tr("尚未确认幻灯片区域：确认后才会开始抽帧（语音识别照常进行）。")}
             </span>
-            <button className="btn btn-small btn-primary" onClick={() => setRoiCardHidden(false)}>
-              框选幻灯片区域
-            </button>
+            <button className="btn btn-small btn-primary" onClick={() => setRoiCardHidden(false)}>{tr("框选幻灯片区域")}</button>
           </div>
         ) : (
           <RoiEditor
@@ -633,13 +623,13 @@ function VideoPage({ id }: { id: string }) {
             time={roiShotTime}
             duration={video.duration_s}
             initial={isFullFrame(video.roi_suggestion) ? null : video.roi_suggestion}
-            confirmLabel="确认"
+            confirmLabel={tr("确认")}
             intro={
               <p className="small">
                 {video.status === 'awaiting_roi'
-                  ? '语音识别和字幕已完成。框选幻灯片所在的区域并确认后，开始提取幻灯片。'
-                  : '确认幻灯片所在的区域后开始提取幻灯片；语音识别不受影响，照常进行。'}
-                {video.roi_suggestion ? '已预填上次使用的区域，可直接确认或重新框选。' : ''}
+                  ? tr("语音识别和字幕已完成。框选幻灯片所在的区域并确认后，开始提取幻灯片。")
+                  : tr("确认幻灯片所在的区域后开始提取幻灯片；语音识别不受影响，照常进行。")}
+                {video.roi_suggestion ? tr("已预填上次使用的区域，可直接确认或重新框选。") : ''}
               </p>
             }
             onClose={() => setRoiCardHidden(true)}
@@ -648,32 +638,32 @@ function VideoPage({ id }: { id: string }) {
         ))}
 
       <main ref={setGrid} className="vp-grid" data-chat={fit.chatPlace} data-float={videoOut ? 'on' : undefined} style={gridStyle}>
-        <input ref={pdfInput} type="file" accept=".pdf,application/pdf" hidden aria-label="选择 PDF 文件" onChange={(event) => {
+        <input ref={pdfInput} type="file" accept=".pdf,application/pdf" hidden aria-label={tr("选择 PDF 文件")} onChange={(event) => {
           const file = event.target.files?.[0]; event.target.value = ''; if (file) void importPdf(file)
         }} />
         <FloatingFrame floating={fit.floating} hidden={layout.videoHidden} onHide={hideVideo} box={layout.floatBox} avoidRight={fit.chatPlace === 'side' ? fit.chatW + SPLIT_W + 14 : 0} onBox={layout.setFloatBox} onDock={layout.toggleFloat}>
-          <Player videoId={id} videoRef={videoRef} subsVersion={subsVersion} subsHint={subsHint} onTime={onTime} videoH={fit.floating ? null : videoH} videoHMax={videoHMax}
-            splitLabel={docked ? '拖拽调整视频与 Agent 的高度' : '拖拽调整视频与页面区的高度'} onVideoH={layout.setVideoH}
+          <Player videoId={id} videoRef={videoRef} subsVersion={subsVersion} subsHint={systemText(subsHint)} onTime={onTime} videoH={fit.floating ? null : videoH} videoHMax={videoHMax}
+            splitLabel={docked ? tr("拖拽调整视频与 Agent 的高度") : tr("拖拽调整视频与页面区的高度")} onVideoH={layout.setVideoH}
             floating={fit.floating} onToggleFloat={layout.toggleFloat} onHide={hideVideo} />
         </FloatingFrame>
         <div id="vp-outline" className="vp-outline">
-          <section className="panel doc-area" aria-label="页面区">
+          <section className="panel doc-area" aria-label={tr("页面区")}>
             <div className="doc-workspace" ref={workspace} onKeyDown={(event) => {
               if (event.key === 'Escape' && filesOpen) closeFiles()
             }}>
-            <PageTree videoId={id} hidden={!filesOpen} items={notes} loading={!notesLoaded} error={notesError} onRetry={refreshNotes} page={page}
+            <PageTree videoId={id} hidden={!filesOpen} items={notes} loading={!notesLoaded} error={systemText(notesError)} onRetry={refreshNotes} page={page}
               onOpen={(name) => { openPage(name); closeNarrowFiles() }} onNew={() => void newPage()} onImport={() => pdfInput.current?.click()}
               importing={importingPdf} onAction={(name, action) => { rowAction(name, action); if (action === 'rename') closeNarrowFiles() }} />
-            {filesOpen && <button type="button" className="pg-backdrop" aria-label="关闭文件栏遮罩" tabIndex={-1} onClick={closeFiles} />}
+            {filesOpen && <button type="button" className="pg-backdrop" aria-label={tr("关闭文件栏遮罩")} tabIndex={-1} onClick={closeFiles} />}
             <EditorWorkspace layout={editors} items={notes} onOpen={openPage} onClose={closeTab} onFocus={focusGroup}
               onSplit={() => setEditors(splitEditor)} onMerge={() => setEditors(mergeEditors)} onBrowse={() => setFilesOpen(true)}
               render={(name) => name === OUTLINE_PAGE ? (
                 <OutlinePanel
                   embedded
-                  headExtra={outline ? <button className="btn btn-small" onClick={copyOutlineToNote} title="得到一份可以自由编辑的笔记副本">复制为笔记</button> : undefined}
+                  headExtra={outline ? <button className="btn btn-small" onClick={copyOutlineToNote} title={tr("得到一份可以自由编辑的笔记副本")}>{tr("复制为笔记")}</button> : undefined}
                   outline={outline}
                   loading={outlineLoading && !outline}
-                  error={outlineError}
+                  error={systemText(outlineError)}
                   placeholder={outlinePlaceholder}
                   currentTime={currentTime}
                   onSeek={seek}
@@ -688,9 +678,9 @@ function VideoPage({ id }: { id: string }) {
                 />
               ) : name.startsWith('pdf:') ? (() => {
                 const opened = pdfWindows.find(w => `pdf:${w.pdf.id}` === name)
-                return opened ? <Suspense fallback={<p className="muted editor-loading" role="status">正在加载 PDF…</p>}>
+                return opened ? <Suspense fallback={<p className="muted editor-loading" role="status">{tr("正在加载 PDF…")}</p>}>
                   <PdfDoc videoId={id} pdf={opened.pdf} jump={opened.jump} onDelete={() => void removePage(name)} onSaved={savedPdf} registerLeave={registerPdfLeave} />
-                </Suspense> : <p role="status">正在读取 PDF…</p>
+                </Suspense> : <p role="status">{tr("正在读取 PDF…")}</p>
               })() : (
                 <NoteDoc videoId={id} name={name} refreshKey={notesRefresh} onChanged={refreshNotes} onSeek={seek} getTime={getTime}
                   agentEnabled={chatEnabled} onAgent={askFromPage} autoFocusTitle={titleFocus === name}
@@ -700,13 +690,13 @@ function VideoPage({ id }: { id: string }) {
             </div>
           </section>
         </div>
-        {docked && <Splitter className="vp-split-1" direction="col" label="拖拽调整页面区与视频的宽度" controls="vp-outline" value={fit.outlineW} min={OUTLINE_W.min} max={fit.outlineMax} onStart={() => fit.outlineW} onResize={(w) => layout.setOutlineW(w, fit.outlineMax)} onReset={() => layout.setOutlineW(OUTLINE_W.def, fit.outlineMax)} />}
+        {docked && <Splitter className="vp-split-1" direction="col" label={tr("拖拽调整页面区与视频的宽度")} controls="vp-outline" value={fit.outlineW} min={OUTLINE_W.min} max={fit.outlineMax} onStart={() => fit.outlineW} onResize={(w) => layout.setOutlineW(w, fit.outlineMax)} onReset={() => layout.setOutlineW(OUTLINE_W.def, fit.outlineMax)} />}
         {fit.chatPlace === 'side' && (
-          <Splitter className="vp-split-2" direction="col" sign={-1} label="拖拽调整 Agent 侧栏宽度" controls="vp-agent" value={fit.chatW} min={CHAT_W.min} max={fit.chatMax} onStart={() => fit.chatW} onResize={(w) => layout.setChatW(w, fit.chatMax)} onReset={() => layout.setChatW(CHAT_W.def, fit.chatMax)} />
+          <Splitter className="vp-split-2" direction="col" sign={-1} label={tr("拖拽调整 Agent 侧栏宽度")} controls="vp-agent" value={fit.chatW} min={CHAT_W.min} max={fit.chatMax} onStart={() => fit.chatW} onResize={(w) => layout.setChatW(w, fit.chatMax)} onReset={() => layout.setChatW(CHAT_W.def, fit.chatMax)} />
         )}
         {/* 收起或换位置时都保持挂载（只换网格区域），正在进行的回答和会话状态不丢 */}
         <div id="vp-agent" className={`vp-chat${layout.chatOpen ? '' : ' is-hidden'}`}>
-          <ChatPanel videoId={id} enabled={chatEnabled} disabledHint={chatHint} onSeek={seek} reference={reference} onClearReference={clearReference} onOutlineChanged={loadOutline} outlineRevision={outline?.revision}
+          <ChatPanel videoId={id} enabled={chatEnabled} disabledHint={systemText(chatHint)} onSeek={seek} reference={reference} onClearReference={clearReference} onOutlineChanged={loadOutline} outlineRevision={outline?.revision}
             headExtra={dockButton}
             noteAttach={attachNote ? activePdf?.name ?? (page !== OUTLINE_PAGE ? pageTitle(page) : null) : null} onDetachNote={() => setAttachNote(false)} resolveNoteTarget={resolveNoteTarget}
             pdfTarget={attachNote && activePdf ? { id: activePdf.id, revision: activePdf.revision } : undefined}
@@ -716,9 +706,9 @@ function VideoPage({ id }: { id: string }) {
 
       {toast && (
         <div className="toast" role="status">
-          <span>{toast.text}</span>
-          {toast.undo && <button type="button" className="toast-undo" onClick={toast.undo}>撤销</button>}
-          <button type="button" className="toast-close" aria-label="关闭提示" onClick={() => setToast(null)}>×</button>
+          <span>{systemText(toast.text)}</span>
+          {toast.undo && <button type="button" className="toast-undo" onClick={toast.undo}>{tr("撤销")}</button>}
+          <button type="button" className="toast-close" aria-label={tr("关闭提示")} onClick={() => setToast(null)}>×</button>
         </div>
       )}
 
@@ -729,12 +719,9 @@ function VideoPage({ id }: { id: string }) {
           time={currentTime > 0 ? currentTime : roiShotTime}
           duration={video.duration_s}
           initial={isFullFrame(video.roi) ? null : video.roi}
-          confirmLabel={kfStatus === 'done' || kfStatus === 'failed' ? '保存并重新抽帧' : '确认'}
+          confirmLabel={kfStatus === 'done' || kfStatus === 'failed' ? tr("保存并重新抽帧") : tr("确认")}
           intro={
-            <p className="small">
-              保存后只重跑提取幻灯片及其下游（切分讲解片段、读取幻灯片、整理证据、生成大纲），语音识别和字幕不重跑；
-              涉及外部服务的阶段开始前会先显示发送清单与费用预估。
-            </p>
+            <p className="small">{tr("保存后只重跑提取幻灯片及其下游（切分讲解片段、读取幻灯片、整理证据、生成大纲），语音识别和字幕不重跑； 涉及外部服务的阶段开始前会先显示发送清单与费用预估。")}</p>
           }
           onClose={() => setRoiEditOpen(false)}
           onSaved={onRoiSaved}

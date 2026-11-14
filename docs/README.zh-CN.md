@@ -16,7 +16,7 @@
 - Markdown 笔记、PDF 阅读与批注、可调整分栏的阅读工作区。
 - 导出单讲或整门课的 `.ltcourse` 包，在另一台设备恢复已处理资料。
 
-前端 React + TypeScript，后端 FastAPI + Python，课程保存在本机 SQLite 和文件目录。界面目前以简体中文为主。
+前端 React + TypeScript，后端 FastAPI + Python，课程保存在本机 SQLite 和文件目录。在 **设置 → 界面语言 / Interface language** 可切换简体中文与 English，即时生效并保存在当前浏览器。课程原文、已有笔记与独立的 AI 输出语言设置不受影响。
 
 ## 启动
 

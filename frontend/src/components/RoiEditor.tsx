@@ -1,3 +1,4 @@
+import { systemText, tr, useLocale } from '../i18n.ts'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { errorText, formatTime, frameUrl, saveKeyframeRoi, type Roi, type VideoDetail } from '../api.ts'
 import Modal from './Modal.tsx'
@@ -33,11 +34,12 @@ export default function RoiEditor({
   time,
   duration,
   initial,
-  confirmLabel = '确认',
+  confirmLabel = tr("确认"),
   intro,
   onClose,
   onSaved,
 }: Props) {
+  useLocale()
   const [roi, setRoi] = useState<Roi | null>(initial)
   const [asDefault, setAsDefault] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -97,15 +99,11 @@ export default function RoiEditor({
   const actions = (
     <>
       <label className="check">
-        <input type="checkbox" checked={asDefault} onChange={(e) => setAsDefault(e.target.checked)} />
-        设为以后导入视频的默认区域
-      </label>
+        <input type="checkbox" checked={asDefault} onChange={(e) => setAsDefault(e.target.checked)} />{tr("设为以后导入视频的默认区域")}</label>
       <span className="spacer" />
-      <button className="btn" onClick={() => void save(true)} disabled={busy}>
-        使用整个画面
-      </button>
+      <button className="btn" onClick={() => void save(true)} disabled={busy}>{tr("使用整个画面")}</button>
       <button className="btn btn-primary" onClick={() => void save(false)} disabled={busy || !roi || tooSmall}>
-        {busy ? '保存中…' : confirmLabel}
+        {busy ? tr("保存中…") : confirmLabel}
       </button>
     </>
   )
@@ -113,13 +111,9 @@ export default function RoiEditor({
   const body = (
     <>
       {intro}
-      <p className="muted small">
-        在截图上拖出幻灯片所在的矩形。抽帧时只比较框内的画面，保存的截图也只保留框内部分，可排除摄像头画面的干扰，并减少以后发给模型的图片大小。
-      </p>
+      <p className="muted small">{tr("在截图上拖出幻灯片所在的矩形。抽帧时只比较框内的画面，保存的截图也只保留框内部分，可排除摄像头画面的干扰，并减少以后发给模型的图片大小。")}</p>
       <div className="roi-time">
-        <button className="btn btn-small" onClick={() => moveT(-STEP_S)} disabled={t <= 0} title="往前 1 分钟">
-          ‹ 1 分钟
-        </button>
+        <button className="btn btn-small" onClick={() => moveT(-STEP_S)} disabled={t <= 0} title={tr("往前 1 分钟")}>{tr("‹ 1 分钟")}</button>
         {maxT != null && (
           <input
             type="range"
@@ -128,18 +122,16 @@ export default function RoiEditor({
             step={1}
             value={Math.min(t, maxT)}
             onChange={(e) => setT(Number(e.target.value))}
-            aria-label="截图时间点"
+            aria-label={tr("截图时间点")}
           />
         )}
         <button
           className="btn btn-small"
           onClick={() => moveT(STEP_S)}
           disabled={maxT != null && t >= maxT}
-          title="往后 1 分钟"
-        >
-          1 分钟 ›
-        </button>
-        <span className="small mono muted">截图时间 {formatTime(t)}</span>
+          title={tr("往后 1 分钟")}
+        >{tr("1 分钟 ›")}</button>
+        <span className="small mono muted">{tr("截图时间")} {formatTime(t)}</span>
       </div>
       <div
         ref={boxRef}
@@ -151,14 +143,14 @@ export default function RoiEditor({
       >
         <img
           src={frameUrl(videoId, shotT, 1280)}
-          alt="视频截图"
+          alt={tr("视频截图")}
           draggable={false}
           onLoad={() => setLoaded({ t: shotT, ok: true })}
           onError={() => setLoaded({ t: shotT, ok: false })}
         />
         {imgState !== 'ok' && (
           <div className="roi-box-msg small">
-            {imgState === 'loading' ? '正在截取画面…' : '这个时间点没有画面，请换一个时间点'}
+            {imgState === 'loading' ? tr("正在截取画面…") : tr("这个时间点没有画面，请换一个时间点")}
           </div>
         )}
         {roi && (
@@ -175,23 +167,21 @@ export default function RoiEditor({
       </div>
       <p className="small mono muted">
         {roi
-          ? `x ${(roi[0] * 100).toFixed(1)}%  y ${(roi[1] * 100).toFixed(1)}%  宽 ${(roi[2] * 100).toFixed(1)}%  高 ${(roi[3] * 100).toFixed(1)}%`
-          : '尚未框选'}
-        {tooSmall && <span className="error-text">（太小：宽高都要不小于画面的 5%）</span>}
+          ? tr("x {0}%  y {1}%  宽 {2}%  高 {3}%", (roi[0] * 100).toFixed(1), (roi[1] * 100).toFixed(1), (roi[2] * 100).toFixed(1), (roi[3] * 100).toFixed(1))
+          : tr("尚未框选")}
+        {tooSmall && <span className="error-text">{tr("（太小：宽高都要不小于画面的 5%）")}</span>}
       </p>
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text">{systemText(error)}</p>}
     </>
   )
 
   if (variant === 'card') {
     return (
-      <section className="panel roi-card" aria-label="框选幻灯片区域">
+      <section className="panel roi-card" aria-label={tr("框选幻灯片区域")}>
         <div className="panel-head">
-          <h2>框选幻灯片区域</h2>
+          <h2>{tr("框选幻灯片区域")}</h2>
           {onClose && (
-            <button className="btn btn-small" onClick={onClose} disabled={busy}>
-              稍后再说
-            </button>
+            <button className="btn btn-small" onClick={onClose} disabled={busy}>{tr("稍后再说")}</button>
           )}
         </div>
         <div className="panel-body">
@@ -203,7 +193,7 @@ export default function RoiEditor({
   }
 
   return (
-    <Modal open={open} title="框选幻灯片区域" onClose={() => !busy && onClose?.()} width={900} footer={actions}>
+    <Modal open={open} title={tr("框选幻灯片区域")} onClose={() => !busy && onClose?.()} width={900} footer={actions}>
       {body}
     </Modal>
   )

@@ -35,3 +35,25 @@ def test_ignores_non_evidence_brackets():
     text = "数组 [1, 2]、链接 [text](url)、[S12] 位数不够、[C0001] 字幕 ID、[N01]、[S012.] 残缺"
     assert citations.extract_ids(text) == []
     assert citations.normalize(text) == text
+
+
+def test_transcript_ranges_expand_in_order_and_validate_every_member():
+    text = '来源 [T0152-T0154, S012][T0153] 与 [ T0078 – T0079 ]'
+    expected = ['T0152', 'T0153', 'T0154', 'S012', 'T0078', 'T0079']
+    assert citations.extract_ids(text) == expected
+    assert citations.normalize(text) == '来源 [T0152][T0153][T0154][S012][T0153] 与 [T0078][T0079]'
+    index = {key: {'jump': n * 10} for n, key in enumerate(expected)}
+    valid, invalid = citations.resolve(text, index, allowed=set(expected) - {'T0153'})
+    assert invalid == ['T0153']
+    assert [c['id'] for c in valid] == [key for key in expected if key != 'T0153']
+    del index['T0153']
+    assert citations.resolve('[T0152—T0154]', index)[1] == ['T0153']
+
+
+def test_invalid_or_excessive_ranges_are_not_silently_accepted():
+    for marker in ('T0004-T0001', 'T0001-T99999999999999999999', 'T0001-T1001'):
+        text = f'[{marker}]'
+        assert citations.normalize(text) == text
+        assert citations.resolve(text, {}) == ([], [marker])
+    assert citations.normalize('[T9999-T10000]') == '[T9999][T10000]'
+    assert citations.normalize('[T0152-T0152]') == '[T0152]'

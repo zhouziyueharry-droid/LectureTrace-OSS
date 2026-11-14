@@ -1,3 +1,4 @@
+import { tr, systemText } from './i18n.ts'
 /**
  * 后端接口与数据类型。类型严格对应 docs/CONTRACTS.md 与 ARCHITECTURE.md §6。
  * 所有请求失败时抛 ApiError，message 为后端返回的 detail（中文原因）。
@@ -21,16 +22,16 @@ export const STAGE_NAMES = [
 export type StageName = (typeof STAGE_NAMES)[number]
 
 export const STAGE_LABELS: Record<StageName, string> = {
-  extract_audio: '抽取音频',
-  asr: '语音识别',
-  cues: '切分字幕',
-  keyframes: '提取幻灯片',
-  segments: '切分讲解片段',
-  await_confirm: '等待确认',
-  translate: '翻译字幕',
-  read_slides: '读取幻灯片',
-  evidence: '整理证据',
-  outline: '生成大纲',
+  get extract_audio() { return tr("抽取音频") },
+  get asr() { return tr("语音识别") },
+  get cues() { return tr("切分字幕") },
+  get keyframes() { return tr("提取幻灯片") },
+  get segments() { return tr("切分讲解片段") },
+  get await_confirm() { return tr("等待确认") },
+  get translate() { return tr("翻译字幕") },
+  get read_slides() { return tr("读取幻灯片") },
+  get evidence() { return tr("整理证据") },
+  get outline() { return tr("生成大纲") },
 }
 
 export function stageLabel(name: string): string {
@@ -40,22 +41,22 @@ export function stageLabel(name: string): string {
 export type StageStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped'
 
 export const STAGE_STATUS_LABELS: Record<StageStatus, string> = {
-  pending: '等待中',
-  running: '进行中',
-  done: '已完成',
-  failed: '失败',
-  skipped: '已跳过',
+  get pending() { return tr("等待中") },
+  get running() { return tr("进行中") },
+  get done() { return tr("已完成") },
+  get failed() { return tr("失败") },
+  get skipped() { return tr("已跳过") },
 }
 
 /** awaiting_roi：语音一侧已处理完，等待用户确认幻灯片区域后才抽帧（提案 0001 §2.5） */
 export type VideoStatus = 'processing' | 'awaiting_roi' | 'awaiting_confirm' | 'done' | 'failed'
 
 export const VIDEO_STATUS_LABELS: Record<VideoStatus, string> = {
-  processing: '处理中',
-  awaiting_roi: '等待确认区域',
-  awaiting_confirm: '等待确认',
-  done: '已完成',
-  failed: '失败',
+  get processing() { return tr("处理中") },
+  get awaiting_roi() { return tr("等待确认区域") },
+  get awaiting_confirm() { return tr("等待确认") },
+  get done() { return tr("已完成") },
+  get failed() { return tr("失败") },
 }
 
 export function videoStatusLabel(s: string): string {
@@ -294,7 +295,7 @@ function detailToText(detail: unknown): string | null {
     const parts = detail
       .map((d) => (d && typeof d === 'object' && 'msg' in d ? String((d as { msg: unknown }).msg) : null))
       .filter(Boolean)
-    if (parts.length) return parts.join('；')
+    if (parts.length) return parts.join(tr("；"))
   }
   return null
 }
@@ -307,9 +308,9 @@ function parseErrorBody(text: string, status: number, statusText: string): ApiEr
     /* 非 JSON */
   }
   if (!msg) {
-    if (status === 0) msg = '无法连接后端服务，请确认后端已启动'
-    else if (status === 502 || status === 503 || status === 504) msg = `后端服务不可用（${status}），请确认后端已启动`
-    else msg = `请求失败（${status}${statusText ? ' ' + statusText : ''}）`
+    if (status === 0) msg = tr("无法连接后端服务，请确认后端已启动")
+    else if (status === 502 || status === 503 || status === 504) msg = tr("后端服务不可用（{0}），请确认后端已启动", status)
+    else msg = tr("请求失败（{0}{1}）", status, statusText ? ' ' + statusText : '')
   }
   return new ApiError(msg, status)
 }
@@ -324,7 +325,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   try {
     res = await fetch(url, init)
   } catch {
-    throw new ApiError('无法连接后端服务，请确认后端已启动', 0)
+    throw new ApiError(tr("无法连接后端服务，请确认后端已启动"), 0)
   }
   if (!res.ok) throw await toApiError(res)
   if (res.status === 204) return undefined as T
@@ -413,7 +414,7 @@ async function preparePackageStream(url: string, onProgress: (progress: PackageP
   try {
     response = await fetch(url, { ...jsonBody({}), headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' } })
   } catch {
-    throw new ApiError('无法连接后端服务，请确认后端已启动', 0)
+    throw new ApiError(tr("无法连接后端服务，请确认后端已启动"), 0)
   }
   if (!response.ok) throw await toApiError(response)
   let result: PreparedPackage | undefined
@@ -422,7 +423,7 @@ async function preparePackageStream(url: string, onProgress: (progress: PackageP
     if (event.type === 'done') result = event.result
     if (event.type === 'error') throw new ApiError(event.detail, event.status)
   })
-  if (!result) throw new ApiError('打包进度连接已中断，未确认打包完成。请重试。', 0)
+  if (!result) throw new ApiError(tr("打包进度连接已中断，未确认打包完成。请重试。"), 0)
   return result
 }
 
@@ -451,11 +452,11 @@ export function previewPackage(file: File, onProgress: (fraction: number) => voi
         if (!data.token || !(data.video_id || (data.course_id && data.lectures?.length))) throw new Error()
         resolve(data)
       } catch {
-        reject(new ApiError('课程包预览返回格式无法识别，请重试', xhr.status))
+        reject(new ApiError(tr("课程包预览返回格式无法识别，请重试"), xhr.status))
       }
     }
-    xhr.onerror = () => reject(new ApiError('上传失败：无法连接后端服务', 0))
-    xhr.onabort = () => reject(new ApiError('上传已取消', 0))
+    xhr.onerror = () => reject(new ApiError(tr("上传失败：无法连接后端服务"), 0))
+    xhr.onabort = () => reject(new ApiError(tr("上传已取消"), 0))
     xhr.send(file)
   })
   return { promise, abort: () => xhr.abort() }
@@ -480,14 +481,14 @@ export function uploadVideo(file: File, onProgress: (fraction: number) => void):
           if (!id) throw new Error()
           resolve(id)
         } catch {
-          reject(new ApiError('上传成功，但后端返回格式无法识别', xhr.status))
+          reject(new ApiError(tr("上传成功，但后端返回格式无法识别"), xhr.status))
         }
       } else {
         reject(parseErrorBody(xhr.responseText, xhr.status, xhr.statusText))
       }
     }
-    xhr.onerror = () => reject(new ApiError('上传失败：无法连接后端服务', 0))
-    xhr.onabort = () => reject(new ApiError('上传已取消', 0))
+    xhr.onerror = () => reject(new ApiError(tr("上传失败：无法连接后端服务"), 0))
+    xhr.onabort = () => reject(new ApiError(tr("上传已取消"), 0))
     const form = new FormData()
     form.append('file', file, file.name)
     xhr.send(form)
@@ -515,7 +516,7 @@ export async function getOutline(id: string): Promise<Outline | null> {
   try {
     const o = await request<Partial<Outline>>(`${base(id)}/outline`)
     const admin =
-      o?.admin && Array.isArray(o.admin.items) ? { title: o.admin.title || '课程事务', items: o.admin.items } : null
+      o?.admin && Array.isArray(o.admin.items) ? { title: o.admin.title || tr("课程事务"), items: o.admin.items } : null
     return {
       chapters: o?.chapters ?? [],
       revision: o?.revision,
@@ -733,14 +734,14 @@ export async function askStream(
     })
   } catch (e) {
     if ((e as Error)?.name === 'AbortError') throw e
-    throw new ApiError('无法连接后端服务，请确认后端已启动', 0)
+    throw new ApiError(tr("无法连接后端服务，请确认后端已启动"), 0)
   }
   if (!res.ok) throw await toApiError(res)
   await readEventStream<ChatEvent>(res, onEvent)
 }
 
 async function readEventStream<T>(res: Response, onEvent: (event: T) => void): Promise<void> {
-  if (!res.body) throw new ApiError('浏览器不支持流式读取', 0)
+  if (!res.body) throw new ApiError(tr("浏览器不支持流式读取"), 0)
 
   const reader = res.body.pipeThrough(new TextDecoderStream()).getReader()
   let buffer = ''
@@ -954,6 +955,20 @@ export interface LlmUpdate {
 
 export const getSettings = () => request<SettingsView>('/api/settings')
 
+export interface McpStatus {
+  state: 'missing_dependency' | 'disabled' | 'starting' | 'ready' | 'error'
+  token_configured: boolean
+  endpoint: string
+  tools: { name: string; description: string }[]
+  library_readable: boolean | null
+  protocol_version: string | null
+  error_code: 'timeout' | 'protocol_failed' | 'library_unreadable' | null
+  checked_at: string
+  latency_ms: number
+}
+
+export const getMcpStatus = () => request<McpStatus>('/api/mcp/status')
+
 export const saveSettings = (body: KeysUpdate) =>
   request<SettingsView>('/api/settings', { ...jsonBody(body), method: 'PUT' })
 
@@ -989,6 +1004,6 @@ export function formatDateTime(iso: string | null | undefined): string {
 }
 
 export function errorText(e: unknown): string {
-  if (e instanceof Error) return e.message
-  return String(e)
+  if (e instanceof Error) return systemText(e.message)
+  return systemText(String(e))
 }

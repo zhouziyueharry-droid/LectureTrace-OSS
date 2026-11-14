@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from . import db
 from .api import packages
 from .api import pdfs
-from .api import chat, codex, courses, notes, outline_edits, processing, settings, videos
+from .api import chat, codex, courses, mcp_status, notes, outline_edits, processing, settings, videos
 from .config import ROOT_DIR, settings as app_settings
 from .pipeline import runner
 
@@ -51,6 +51,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="LectureTrace", lifespan=lifespan)
+app.state.mcp_http = mcp_http
+app.include_router(mcp_status.router)
 if mcp_http is not None:
     app.add_route("/mcp", mcp_http, methods=["GET", "POST", "DELETE"])
 else:

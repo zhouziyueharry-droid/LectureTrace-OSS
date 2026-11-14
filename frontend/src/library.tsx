@@ -1,3 +1,4 @@
+import { systemText, tr, useLocale } from './i18n.ts'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { errorText, listCourses, listVideos, setVideoCourse, type Course, type Video } from './api.ts'
 import ImportDialog from './components/ImportDialog.tsx'
@@ -30,11 +31,12 @@ const Ctx = createContext<Library | null>(null)
 
 export function useLibrary(): Library {
   const v = useContext(Ctx)
-  if (!v) throw new Error('useLibrary 需要在 LibraryProvider 内使用')
+  if (!v) throw new Error(tr("useLibrary 需要在 LibraryProvider 内使用"))
   return v
 }
 
 export function LibraryProvider({ children }: { children: ReactNode }) {
+  useLocale()
   const [courses, setCourses] = useState<Course[] | null>(null)
   const [videos, setVideos] = useState<Video[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -83,10 +85,10 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       const moved = todo.filter((_, i) => results[i].status === 'fulfilled')
       const failed = todo.length - moved.length
       await refresh()
-      const target = courseId ? coursesRef.current?.find((c) => c.id === courseId)?.title ?? '课程' : '未归类'
+      const target = courseId ? coursesRef.current?.find((c) => c.id === courseId)?.title ?? tr("课程") : tr("未归类")
       if (moved.length > 0) {
         notify(
-          `已把 ${moved.length} 讲移到「${target}」${failed ? `，${failed} 讲失败` : ''}`,
+          tr("已把 {0} 讲移到「{1}」{2}", moved.length, target, failed ? tr("，{0} 讲失败", failed) : ''),
           failed ? 'error' : undefined,
           async () => {
             await Promise.allSettled(moved.map((id) => setVideoCourse(id, prev.get(id) ?? null)))
@@ -95,7 +97,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
           },
         )
       } else {
-        notify('移动失败，请稍后重试', 'error')
+        notify(tr("移动失败，请稍后重试"), 'error')
       }
       return failed
     },
@@ -127,13 +129,11 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       )}
       {toast && (
         <div className={`lt-toast${toast.tone === 'error' ? ' is-error' : ''}`} role="status" key={toast.id}>
-          <span>{toast.text}</span>
+          <span>{systemText(toast.text)}</span>
           {toast.undo && (
-            <button className="lt-toast-btn" onClick={toast.undo}>
-              撤销
-            </button>
+            <button className="lt-toast-btn" onClick={toast.undo}>{tr("撤销")}</button>
           )}
-          <button className="lt-toast-btn" aria-label="关闭提示" onClick={() => setToast(null)}>
+          <button className="lt-toast-btn" aria-label={tr("关闭提示")} onClick={() => setToast(null)}>
             ×
           </button>
         </div>

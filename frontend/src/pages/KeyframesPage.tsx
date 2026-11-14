@@ -1,3 +1,4 @@
+import { systemText, tr, useLocale } from '../i18n.ts'
 import ThemeToggle from '../components/ThemeToggle.tsx'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
@@ -17,13 +18,14 @@ import RoiEditor from '../components/RoiEditor.tsx'
 import { findStage, useVideoProgress } from '../useVideoProgress.ts'
 
 const SPANS = [
-  { label: '全部', value: 0 },
-  { label: '30 分钟', value: 1800 },
-  { label: '10 分钟', value: 600 },
-  { label: '2 分钟', value: 120 },
+  { get label() { return tr("全部") }, value: 0 },
+  { get label() { return tr("30 分钟") }, value: 1800 },
+  { get label() { return tr("10 分钟") }, value: 600 },
+  { get label() { return tr("2 分钟") }, value: 120 },
 ]
 
 export default function KeyframesPageRoute() {
+  useLocale()
   const { id = '' } = useParams()
   return <KeyframesPage key={id} id={id} />
 }
@@ -42,6 +44,7 @@ function appearanceImage(s: KeyframeSlide, j: number): string {
 
 /** 原始画面上叠加 ROI（虚线）与内容框（实线）；内容框是 ROI 内的相对坐标 */
 function FrameOverlay({ roi, box }: { roi: Roi | null; box: Roi | null }) {
+  useLocale()
   const r: Roi = roi ?? [0, 0, 1, 1]
   const abs: Roi | null = box ? [r[0] + box[0] * r[2], r[1] + box[1] * r[3], box[2] * r[2], box[3] * r[3]] : null
   const style = (b: Roi) => ({
@@ -59,6 +62,7 @@ function FrameOverlay({ roi, box }: { roi: Roi | null; box: Roi | null }) {
 }
 
 function KeyframesPage({ id }: { id: string }) {
+  const locale = useLocale()
   const { video, notFound, live, refresh } = useVideoProgress(id)
   const kfStage = findStage(video, 'keyframes')
   const [data, setData] = useState<KeyframesResult | null>(null)
@@ -93,8 +97,8 @@ function KeyframesPage({ id }: { id: string }) {
   }, [id, version])
 
   useEffect(() => {
-    document.title = `抽帧展示台 - ${video?.title ?? ''} - LectureTrace`
-  }, [video?.title])
+    document.title = tr("抽帧展示台 - {0} - LectureTrace", video?.title ?? '')
+  }, [video?.title, locale])
 
   // 悬停曲线时截图：停顿 150ms 再请求，按秒取整便于缓存
   useEffect(() => {
@@ -146,8 +150,8 @@ function KeyframesPage({ id }: { id: string }) {
   if (notFound) {
     return (
       <div className="page-center">
-        <p>视频不存在或已被删除。</p>
-        <Link to="/">返回首页</Link>
+        <p>{tr("视频不存在或已被删除。")}</p>
+        <Link to="/">{tr("返回首页")}</Link>
       </div>
     )
   }
@@ -165,83 +169,67 @@ function KeyframesPage({ id }: { id: string }) {
   return (
     <div className="kf-page">
       <header className="vp-head">
-        <Link to={`/videos/${id}`} className="back-link">
-          ← 返回视频
-        </Link>
-        <h1 className="vp-title ellipsis">抽帧展示台 · {video?.title ?? ''}</h1>
+        <Link to={`/videos/${id}`} className="back-link">{tr("← 返回视频")}</Link>
+        <h1 className="vp-title ellipsis">{tr("抽帧展示台 ·")} {video?.title ?? ''}</h1>
         <span className="spacer" />
         <ThemeToggle />
         <button className="btn btn-small" onClick={() => setRoiOpen(true)} disabled={!video || kfRunning}>
-          {roiPending ? '框选幻灯片区域' : '修改幻灯片区域'}
+          {roiPending ? tr("框选幻灯片区域") : tr("修改幻灯片区域")}
         </button>
       </header>
 
-      {kfStage?.status === 'failed' && <div className="alert alert-error">抽帧失败：{kfStage.error}</div>}
+      {kfStage?.status === 'failed' && <div className="alert alert-error">{tr("抽帧失败：")}{systemText(kfStage.error)}</div>}
       {roiPending && kfStage?.status === 'pending' && (
-        <div className="alert alert-warn">
-          等待确认幻灯片区域：点右上角"框选幻灯片区域"确认后开始抽帧。
-        </div>
+        <div className="alert alert-warn">{tr("等待确认幻灯片区域：点右上角\"框选幻灯片区域\"确认后开始抽帧。")}</div>
       )}
       {running && (
-        <div className="alert alert-info">
-          正在抽帧{progress != null ? `（${Math.round(progress * 100)}%）` : ''}，完成后自动刷新。
-          {progress != null && (
+        <div className="alert alert-info">{tr("正在抽帧")}{progress != null ? `（${Math.round(progress * 100)}%）` : ''}{tr("，完成后自动刷新。")}{progress != null && (
             <div className="progress progress-thin">
               <div className="progress-bar" style={{ width: `${progress * 100}%` }} />
             </div>
           )}
         </div>
       )}
-      {error && <p className="error-text">{error}</p>}
+      {error && <p className="error-text">{systemText(error)}</p>}
 
       {data && (
         <section className="kf-stats">
           <div>
-            <b>{slides.length}</b> 张幻灯片
-          </div>
+            <b>{slides.length}</b>{tr("张幻灯片")}</div>
           {stats && (
             <>
-              <div title="要点逐条出现等情况，被合并到上一张">
-                <b>{stats.merged}</b> 次合并
-              </div>
-              <div title="老师翻回之前的页">
-                <b>{stats.revisit}</b> 次翻回
-              </div>
-              <div title="停留不足稳定时长、被丢弃的画面；时间轴上红色标出">
-                <b className="error-text">{stats.shortCount}</b> 段短暂画面（共 {formatTime(stats.shortTotal)}）
-              </div>
+              <div title={tr("要点逐条出现等情况，被合并到上一张")}>
+                <b>{stats.merged}</b>{tr("次合并")}</div>
+              <div title={tr("老师翻回之前的页")}>
+                <b>{stats.revisit}</b>{tr("次翻回")}</div>
+              <div title={tr("停留不足稳定时长、被丢弃的画面；时间轴上红色标出")}>
+                <b className="error-text">{stats.shortCount}</b> {tr("段短暂画面（共")} {formatTime(stats.shortTotal)}{tr("）")}</div>
               {stats.blankCount != null && (
                 <div
                   title={
-                    '内容太少（纯黑、空白页等）的稳定画面，不算幻灯片，按无幻灯片时段处理；时间轴上灰色标出' +
+                    tr("内容太少（纯黑、空白页等）的稳定画面，不算幻灯片，按无幻灯片时段处理；时间轴上灰色标出") +
                     (debug?.blank_runs?.length
                       ? '\n' +
                         debug.blank_runs
                           .slice(0, 20)
-                          .map(([a, b, ink]) => `${formatTime(a)}–${formatTime(b)}（内容 ${ink}%）`)
+                          .map(([a, b, ink]) => tr("{0}–{1}（内容 {2}%）", formatTime(a), formatTime(b), ink))
                           .join('\n')
                       : '')
                   }
                 >
-                  <b>{stats.blankCount}</b> 段空白已丢弃（共 {formatTime(stats.blankTotal)}）
-                </div>
+                  <b>{stats.blankCount}</b> {tr("段空白已丢弃（共")} {formatTime(stats.blankTotal)}{tr("）")}</div>
               )}
-              <div>
-                覆盖 <b>{Math.round(stats.coverage * 100)}%</b> 时长
-              </div>
+              <div>{tr("覆盖")}<b>{Math.round(stats.coverage * 100)}%</b>{tr("时长")}</div>
             </>
           )}
-          <div className="muted small">
-            幻灯片区域：{fullFrame(usedRoi) ? '整个画面' : `已框选（${usedRoi!.map((v) => Math.round(v * 100)).join(', ')}%）`}
+          <div className="muted small">{tr("幻灯片区域：")}{fullFrame(usedRoi) ? tr("整个画面") : tr("已框选（{0}%）", usedRoi!.map((v) => Math.round(v * 100)).join(', '))}
             {JSON.stringify(usedRoi) !== JSON.stringify(roi) && !running && (
-              <span className="warn-text">；设置已变更，尚未按新区域重新抽帧</span>
+              <span className="warn-text">{tr("；设置已变更，尚未按新区域重新抽帧")}</span>
             )}
             {debug?.content_box && (
-              <span title="在幻灯片区域内自动去掉黑边后的范围；比对和保存的截图都只用这部分。悬停曲线时在画面上以实线框标出">
-                ；内容框：
-                {debug.content_box_fallback
-                  ? '未发现明显黑边，使用整个区域'
-                  : `x ${pct(debug.content_box[0])}，y ${pct(debug.content_box[1])}，宽 ${pct(debug.content_box[2])}，高 ${pct(debug.content_box[3])}（相对区域）`}
+              <span title={tr("在幻灯片区域内自动去掉黑边后的范围；比对和保存的截图都只用这部分。悬停曲线时在画面上以实线框标出")}>{tr("；内容框：")}{debug.content_box_fallback
+                  ? tr("未发现明显黑边，使用整个区域")
+                  : tr("x {0}，y {1}，宽 {2}，高 {3}（相对区域）", pct(debug.content_box[0]), pct(debug.content_box[1]), pct(debug.content_box[2]), pct(debug.content_box[3]))}
               </span>
             )}
           </div>
@@ -265,7 +253,7 @@ function KeyframesPage({ id }: { id: string }) {
           {hoverT != null && previewT != null ? (
             <>
               <div className="kf-frame">
-                <img src={frameUrl(id, previewT, 640)} alt="悬停位置的画面" />
+                <img src={frameUrl(id, previewT, 640)} alt={tr("悬停位置的画面")} />
                 {debug && (
                   <FrameOverlay
                     roi={fullFrame(usedRoi) ? null : usedRoi}
@@ -273,10 +261,7 @@ function KeyframesPage({ id }: { id: string }) {
                   />
                 )}
               </div>
-              <p className="small mono">
-                悬停位置 {formatTime(previewT)}（原始画面
-                {debug?.content_box ? '；虚线为幻灯片区域，实线为内容框' : ''}）
-              </p>
+              <p className="small mono">{tr("悬停位置")}{formatTime(previewT)}{tr("（原始画面")}{debug?.content_box ? tr("；虚线为幻灯片区域，实线为内容框") : ''}{tr("）")}</p>
             </>
           ) : selectedSlide ? (
             <>
@@ -286,12 +271,10 @@ function KeyframesPage({ id }: { id: string }) {
               />
               <p className="small">
                 <b>{selectedSlide.id}</b>
-                {selectedSlide.appearances.length > 1 ? `.${selectedApp + 1}` : ''}（保存的关键帧
-                {selectedSlide.appearances.length > 1 ? `，第 ${selectedApp + 1} 次出现` : ''}）
-              </p>
+                {selectedSlide.appearances.length > 1 ? `.${selectedApp + 1}` : ''}{tr("（保存的关键帧")}{selectedSlide.appearances.length > 1 ? tr("，第 {0} 次出现", selectedApp + 1) : ''}{tr("）")}</p>
             </>
           ) : (
-            <p className="muted small">悬停下方曲线可查看任意时刻的画面；点击幻灯片卡片可查看保存的关键帧。</p>
+            <p className="muted small">{tr("悬停下方曲线可查看任意时刻的画面；点击幻灯片卡片可查看保存的关键帧。")}</p>
           )}
         </div>
       </section>
@@ -299,7 +282,7 @@ function KeyframesPage({ id }: { id: string }) {
       {debug && duration > 0 && (
         <section className="panel kf-chart">
           <div className="panel-head">
-            <h2>画面变化曲线</h2>
+            <h2>{tr("画面变化曲线")}</h2>
             <div className="segmented">
               {SPANS.map((s) => (
                 <button
@@ -327,16 +310,12 @@ function KeyframesPage({ id }: { id: string }) {
               onHover={setHoverT}
               onSeek={seek}
             />
-            <p className="muted small kf-legend">
-              上：全片总览，色块为各幻灯片的出现时段，底部红色为被丢弃的短暂画面；点击或拖动选择放大区间。
-              下：每秒画面变化（变化像素占比，平方根刻度）；红色虚线为换页阈值，浅红底为短暂画面，竖线为切分点，色带中
-              ↺ 表示翻回旧页、浅色表示合并段。悬停查看画面，点击跳转播放，滚轮平移。
-            </p>
+            <p className="muted small kf-legend">{tr("上：全片总览，色块为各幻灯片的出现时段，底部红色为被丢弃的短暂画面；点击或拖动选择放大区间。 下：每秒画面变化（变化像素占比，平方根刻度）；红色虚线为换页阈值，浅红底为短暂画面，竖线为切分点，色带中 ↺ 表示翻回旧页、浅色表示合并段。悬停查看画面，点击跳转播放，滚轮平移。")}</p>
           </div>
         </section>
       )}
       {data && !debug && (
-        <div className="alert alert-warn">这次抽帧没有记录画面变化曲线（旧版本结果），重新框选区域或重跑抽帧后可查看。</div>
+        <div className="alert alert-warn">{tr("这次抽帧没有记录画面变化曲线（旧版本结果），重新框选区域或重跑抽帧后可查看。")}</div>
       )}
 
       <section className="kf-grid">
@@ -354,7 +333,7 @@ function KeyframesPage({ id }: { id: string }) {
             <div className="kf-card-body">
               <div className="kf-card-head">
                 <b className="mono">{s.id}</b>
-                <span className="muted small">共 {formatTime(totalShown(s))}</span>
+                <span className="muted small">{tr("共")} {formatTime(totalShown(s))}</span>
               </div>
               <div className="kf-apps">
                 {s.appearances.map(([a, b], j) => (
@@ -369,7 +348,7 @@ function KeyframesPage({ id }: { id: string }) {
                     }}
                     title={
                       j > 0
-                        ? `翻回此页（${s.id}.${j + 1}）${s.appearance_images?.[j] ? '，预览区显示这次的截图' : ''}`
+                        ? tr("翻回此页（{0}.{1}）{2}", s.id, j + 1, s.appearance_images?.[j] ? tr("，预览区显示这次的截图") : '')
                         : undefined
                     }
                   >
@@ -390,7 +369,7 @@ function KeyframesPage({ id }: { id: string }) {
           time={currentTime > 0 ? currentTime : Math.min(60, (video?.duration_s ?? 120) / 2)}
           duration={video?.duration_s}
           initial={data ? (fullFrame(roi) ? null : roi) : fullFrame(video?.roi_suggestion ?? null) ? null : (video?.roi_suggestion ?? null)}
-          confirmLabel={kfStage?.status === 'done' || kfStage?.status === 'failed' ? '保存并重新抽帧' : '确认并开始抽帧'}
+          confirmLabel={kfStage?.status === 'done' || kfStage?.status === 'failed' ? tr("保存并重新抽帧") : tr("确认并开始抽帧")}
           onClose={() => setRoiOpen(false)}
           onSaved={() => {
             setRoiOpen(false)

@@ -1,3 +1,4 @@
+import { systemText, tr, useLocale } from '../i18n.ts'
 import { useRef, useState, type DragEvent, type FormEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createCourse, errorText, setVideoCourse, uploadVideo, type Course, type UploadHandle } from '../api.ts'
@@ -30,17 +31,18 @@ let seq = 0
 const toItem = (file: File): Item => ({
   key: ++seq,
   file,
-  error: isMp4(file) ? null : '只支持 MP4 文件，已忽略',
+  error: isMp4(file) ? null : tr("只支持 MP4 文件，已忽略"),
   state: 'ready',
   progress: 0,
 })
 
 export default function ImportDialog(props: Props) {
+  useLocale()
   const [mode, setMode] = useState<'mp4' | 'package'>(() => props.initialFiles.length === 1 && /\.(ltcourse|zip)$/i.test(props.initialFiles[0].name) ? 'package' : 'mp4')
   const modes = (busy: boolean) => (
-    <div className="segmented lt-import-modes" role="group" aria-label="导入类型">
-      <button type="button" className={mode === 'mp4' ? 'is-on' : ''} aria-pressed={mode === 'mp4'} disabled={busy} onClick={() => setMode('mp4')}>导入 MP4</button>
-      <button type="button" className={mode === 'package' ? 'is-on' : ''} aria-pressed={mode === 'package'} disabled={busy} onClick={() => setMode('package')}>导入已处理课程包</button>
+    <div className="segmented lt-import-modes" role="group" aria-label={tr("导入类型")}>
+      <button type="button" className={mode === 'mp4' ? 'is-on' : ''} aria-pressed={mode === 'mp4'} disabled={busy} onClick={() => setMode('mp4')}>{tr("导入 MP4")}</button>
+      <button type="button" className={mode === 'package' ? 'is-on' : ''} aria-pressed={mode === 'package'} disabled={busy} onClick={() => setMode('package')}>{tr("导入已处理课程包")}</button>
     </div>
   )
   return mode === 'package'
@@ -49,6 +51,7 @@ export default function ImportDialog(props: Props) {
 }
 
 function Mp4ImportDialog({ initialCourseId, initialFiles, courses, onClose, onDone, onCourseCreated, notify, modes }: Props & { modes: (busy: boolean) => ReactNode }) {
+  useLocale()
   const navigate = useNavigate()
   const [items, setItems] = useState<Item[]>(() => initialFiles.map(toItem))
   const [courseId, setCourseId] = useState(initialCourseId ?? '')
@@ -104,13 +107,13 @@ function Mp4ImportDialog({ initialCourseId, initialFiles, courses, onClose, onDo
           try {
             await setVideoCourse(id, courseId)
           } catch (e) {
-            note = `已导入，但未能归入课程：${errorText(e)}`
+            note = tr("已导入，但未能归入课程：{0}", errorText(e))
           }
         }
         patch(item.key, { state: 'done', progress: 1, videoId: id, error: note })
         done.push(id)
       } catch (e) {
-        patch(item.key, { state: 'failed', error: cancelled.current ? '已取消' : errorText(e) })
+        patch(item.key, { state: 'failed', error: cancelled.current ? tr("已取消") : errorText(e) })
       }
     }
     handleRef.current = null
@@ -121,7 +124,7 @@ function Mp4ImportDialog({ initialCourseId, initialFiles, courses, onClose, onDo
       onClose()
       navigate(`/videos/${encodeURIComponent(done[0])}`)
     } else if (done.length === valid.length) {
-      notify(`已导入 ${done.length} 个视频，正在本机处理`)
+      notify(tr("已导入 {0} 个视频，正在本机处理", done.length))
       onClose()
     }
   }
@@ -137,20 +140,20 @@ function Mp4ImportDialog({ initialCourseId, initialFiles, courses, onClose, onDo
     if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files)
   }
 
-  const label = running ? '正在上传…' : valid.length > 0 ? `导入 ${valid.length} 个视频` : '导入'
+  const label = running ? tr("正在上传…") : valid.length > 0 ? tr("导入 {0} 个视频", valid.length) : tr("导入")
 
   return (
     <Modal
       open
-      title="导入视频"
+      title={tr("导入视频")}
       width={620}
       onClose={() => !running && onClose()}
       footer={
         <>
           {running ? (
-            <button className="btn" onClick={cancelAll}>取消上传</button>
+            <button className="btn" onClick={cancelAll}>{tr("取消上传")}</button>
           ) : (
-            <button className="btn" onClick={onClose}>关闭</button>
+            <button className="btn" onClick={onClose}>{tr("关闭")}</button>
           )}
           <button className="btn btn-primary" disabled={running || valid.length === 0} onClick={() => void start()}>
             {label}
@@ -174,28 +177,27 @@ function Mp4ImportDialog({ initialCourseId, initialFiles, courses, onClose, onDo
               if (e.target.files) addFiles(e.target.files)
               e.target.value = ''
             }} />
-          <strong>把 MP4 拖到这里，可一次放多个</strong>
-          <span className="muted small">
-            或 <button type="button" className="lt-linkbtn" onClick={() => fileInput.current?.click()} disabled={running}>选择文件</button>
+          <strong>{tr("把 MP4 拖到这里，可一次放多个")}</strong>
+          <span className="muted small">{tr("或")}<button type="button" className="lt-linkbtn" onClick={() => fileInput.current?.click()} disabled={running}>{tr("选择文件")}</button>
           </span>
         </div>
 
         {items.length > 0 && (
-          <ul className="lt-import-list" aria-label="待导入文件">
+          <ul className="lt-import-list" aria-label={tr("待导入文件")}>
             {items.map((x) => (
               <li key={x.key} className={`lt-import-item${x.error && x.state !== 'done' ? ' is-bad' : ''}`}>
                 <div className="lt-import-main">
                   <span className="ellipsis" title={x.file.name}>{x.file.name}</span>
                   <span className="small muted">
-                    {x.state === 'done' ? '已导入' : x.state === 'uploading' ? `${Math.round(x.progress * 100)}%` : x.error ?? fmtSize(x.file.size)}
-                    {x.state === 'done' && x.error ? ` · ${x.error}` : ''}
+                    {x.state === 'done' ? tr("已导入") : x.state === 'uploading' ? `${Math.round(x.progress * 100)}%` : systemText(x.error) || fmtSize(x.file.size)}
+                    {x.state === 'done' && x.error ? ` · ${systemText(x.error)}` : ''}
                   </span>
                   {x.state === 'uploading' && (
                     <div className="progress progress-thin"><div className="progress-bar" style={{ width: `${Math.round(x.progress * 100)}%` }} /></div>
                   )}
                 </div>
                 {x.state !== 'uploading' && x.state !== 'done' && (
-                  <button className="icon-btn" aria-label={`移除 ${x.file.name}`} disabled={running}
+                  <button className="icon-btn" aria-label={tr("移除 {0}", x.file.name)} disabled={running}
                     onClick={() => setItems((xs) => xs.filter((y) => y.key !== x.key))}>×</button>
                 )}
               </li>
@@ -205,24 +207,24 @@ function Mp4ImportDialog({ initialCourseId, initialFiles, courses, onClose, onDo
 
         <div className="lt-import-course">
           <label className="field">
-            <span>归入课程</span>
+            <span>{tr("归入课程")}</span>
             <select value={courseId} disabled={running} onChange={(e) => setCourseId(e.target.value)}>
-              <option value="">未归类</option>
+              <option value="">{tr("未归类")}</option>
               {[...courses, ...created.filter((c) => !courses.some((x) => x.id === c.id))].map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
             </select>
           </label>
           {newCourse === null ? (
-            <button className="btn" disabled={running} onClick={() => setNewCourse('')}>新建课程</button>
+            <button className="btn" disabled={running} onClick={() => setNewCourse('')}>{tr("新建课程")}</button>
           ) : (
             <form className="lt-inline-form" onSubmit={(e) => void createNew(e)}>
-              <input autoFocus aria-label="新课程名称" placeholder="例如 AI6103" maxLength={120} value={newCourse}
+              <input autoFocus aria-label={tr("新课程名称")} placeholder={tr("例如 AI6103")} maxLength={120} value={newCourse}
                 onChange={(e) => setNewCourse(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && (e.stopPropagation(), setNewCourse(null))} />
-              <button className="btn btn-primary" type="submit" disabled={courseBusy || !newCourse.trim()}>创建</button>
+              <button className="btn btn-primary" type="submit" disabled={courseBusy || !newCourse.trim()}>{tr("创建")}</button>
             </form>
           )}
         </div>
-        <p className="muted small">导入后依次上传，并自动开始本机处理（音频、语音识别、幻灯片）。上传期间请勿关闭页面。</p>
-        {error && <p className="error-text small">{error}</p>}
+        <p className="muted small">{tr("导入后依次上传，并自动开始本机处理（音频、语音识别、幻灯片）。上传期间请勿关闭页面。")}</p>
+        {error && <p className="error-text small">{systemText(error)}</p>}
       </div>
     </Modal>
   )
